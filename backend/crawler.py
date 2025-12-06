@@ -90,7 +90,7 @@ class DataCrawler:
                         "source": "PublicData"
                     })
         except Exception as e:
-            print(f"❌ 공공데이터 조회 오류: {e}")
+            print(f"[ERROR] Public data fetch error: {e}")
             try:
                 print(f"응답 본문: {resp.text[:500]}")
             except:

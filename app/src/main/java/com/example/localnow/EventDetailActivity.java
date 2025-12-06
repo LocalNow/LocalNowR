@@ -19,6 +19,7 @@ public class EventDetailActivity extends AppCompatActivity {
         String title = getIntent().getStringExtra("title");
         String date = getIntent().getStringExtra("date");
         String location = getIntent().getStringExtra("location");
+        String description = getIntent().getStringExtra("description");
         String image = getIntent().getStringExtra("image");
         eventId = getIntent().getIntExtra("id", -1);
 
@@ -31,6 +32,7 @@ public class EventDetailActivity extends AppCompatActivity {
         TextView tvTitle = findViewById(R.id.tv_event_title);
         TextView tvDate = findViewById(R.id.tv_event_date);
         TextView tvLocation = findViewById(R.id.tv_event_location);
+        TextView tvDescription = findViewById(R.id.tv_event_description);
         ImageView ivImage = findViewById(R.id.iv_event_image);
         bookmarkIcon = findViewById(R.id.iv_bookmark);
 
@@ -38,6 +40,7 @@ public class EventDetailActivity extends AppCompatActivity {
         tvTitle.setText(title != null ? title : "Event Title");
         tvDate.setText(date != null ? date : "Date");
         tvLocation.setText(location != null ? "장소 : " + location : "장소 : Unknown");
+        tvDescription.setText(description != null ? description : "No description available.");
 
         // Load Image with Glide
         if (image != null && !image.isEmpty()) {

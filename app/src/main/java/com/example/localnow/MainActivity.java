@@ -1,15 +1,26 @@
 package com.example.localnow;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.NonNull;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.widget.ImageView;
+import com.example.localnow.utils.LocationHelper;
 
 public class MainActivity extends AppCompatActivity {
 
     private com.kakao.vectormap.MapView mapView;
     private com.kakao.vectormap.KakaoMap kakaoMap;
     private java.util.List<com.example.localnow.model.Event> pendingEvents = new java.util.ArrayList<>();
+
+    // GPS location tracking
+    private LocationHelper locationHelper;
+    private double userLatitude = 0.0;
+    private double userLongitude = 0.0;
+    private static final double RADIUS_KM = 2.0; // 2km radius filter
+    private com.kakao.vectormap.label.Label userLocationMarker; // User location marker
+    private com.kakao.vectormap.label.LabelLayer sharedLabelLayer; // Shared layer for all markers
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,6 +98,24 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        // My Location button - move camera to user's current location
+        com.google.android.material.floatingactionbutton.FloatingActionButton btnMyLocation = findViewById(R.id.btnMyLocation);
+        btnMyLocation.setOnClickListener(v -> {
+            if (userLatitude != 0.0 && userLongitude != 0.0 && kakaoMap != null) {
+                com.kakao.vectormap.LatLng userPosition = com.kakao.vectormap.LatLng.from(userLatitude, userLongitude);
+                com.kakao.vectormap.camera.CameraUpdate cameraUpdate =
+                    com.kakao.vectormap.camera.CameraUpdateFactory.newCenterPosition(userPosition, 15);
+                kakaoMap.moveCamera(cameraUpdate);
+                android.util.Log.d("MainActivity", "Camera moved to user location: " + userLatitude + ", " + userLongitude);
+            } else {
+                android.widget.Toast.makeText(this, "위치 정보를 가져오는 중입니다...", android.widget.Toast.LENGTH_SHORT).show();
+                android.util.Log.w("MainActivity", "User location not available yet");
+            }
+        });
+
+        // Initialize location tracking
+        initializeLocationTracking();
+
         // Fetch Events (will populate bottom sheet automatically)
         fetchEvents();
 
@@ -146,6 +175,21 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Get or create the shared label layer for all markers
+     */
+    private com.kakao.vectormap.label.LabelLayer getOrCreateLabelLayer() {
+        if (kakaoMap == null) return null;
+
+        if (sharedLabelLayer == null) {
+            com.kakao.vectormap.label.LabelManager labelManager = kakaoMap.getLabelManager();
+            sharedLabelLayer = labelManager.addLayer(
+                com.kakao.vectormap.label.LabelLayerOptions.from("eventLayer"));
+            android.util.Log.d("MainActivity", "Created new label layer");
+        }
+        return sharedLabelLayer;
+    }
+
     private void addMarkersToMap(java.util.List<com.example.localnow.model.Event> events) {
         if (kakaoMap == null) {
             android.util.Log.w("MainActivity", "KakaoMap is not ready yet - will retry later");
@@ -154,13 +198,11 @@ public class MainActivity extends AppCompatActivity {
 
         android.util.Log.d("MainActivity", "Adding markers for " + events.size() + " events");
 
-        // Get LabelManager and LabelLayer (official sample pattern)
-        com.kakao.vectormap.label.LabelManager labelManager = kakaoMap.getLabelManager();
-        com.kakao.vectormap.label.LabelLayer labelLayer = labelManager.getLayer();
-
+        // Get shared label layer
+        com.kakao.vectormap.label.LabelLayer labelLayer = getOrCreateLabelLayer();
         if (labelLayer == null) {
-            labelLayer = labelManager.addLayer(
-                    com.kakao.vectormap.label.LabelLayerOptions.from("eventLayer"));
+            android.util.Log.e("MainActivity", "Failed to get label layer");
+            return;
         }
 
         int markerCount = 0;
@@ -362,6 +404,171 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         android.util.Log.d("MainActivity", "Scheduled notifications for " + events.size() + " events");
+    }
+
+    /**
+     * Initialize GPS location tracking
+     */
+    private void initializeLocationTracking() {
+        locationHelper = new LocationHelper(this);
+
+        // Check if permission is granted
+        if (!locationHelper.hasLocationPermission()) {
+            // Request permission
+            LocationHelper.requestLocationPermission(this);
+            return;
+        }
+
+        // Start tracking location
+        startLocationTracking();
+    }
+
+    /**
+     * Start tracking user's location
+     */
+    private void startLocationTracking() {
+        locationHelper.startLocationUpdates(new LocationHelper.LocationCallback() {
+            @Override
+            public void onLocationReceived(double lat, double lng) {
+                userLatitude = lat;
+                userLongitude = lng;
+                android.util.Log.d("MainActivity", "User location: " + lat + ", " + lng);
+
+                // Update map camera to user's location on first location
+                if (kakaoMap != null && userLatitude != 0.0) {
+                    com.kakao.vectormap.LatLng userPosition = com.kakao.vectormap.LatLng.from(lat, lng);
+                    com.kakao.vectormap.camera.CameraUpdate cameraUpdate =
+                        com.kakao.vectormap.camera.CameraUpdateFactory.newCenterPosition(userPosition, 15);
+                    kakaoMap.moveCamera(cameraUpdate);
+
+                    // Add or update user location marker
+                    updateUserLocationMarker(userPosition);
+                }
+
+                // Refresh events with location filter
+                if (!pendingEvents.isEmpty()) {
+                    filterAndDisplayEvents();
+                }
+            }
+
+            @Override
+            public void onLocationError(String error) {
+                android.util.Log.e("MainActivity", "Location error: " + error);
+                android.widget.Toast.makeText(MainActivity.this,
+                    "위치 정보를 가져올 수 없습니다: " + error,
+                    android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * Filter events by 2km radius and display them
+     */
+    private void filterAndDisplayEvents() {
+        if (userLatitude == 0.0 || userLongitude == 0.0) {
+            // No location yet, show all events
+            addMarkersToMap(pendingEvents);
+            updateBottomSheetWithEvents(pendingEvents);
+            return;
+        }
+
+        // Filter events within 2km radius
+        java.util.List<com.example.localnow.model.Event> filteredEvents =
+            LocationHelper.filterEventsByRadius(pendingEvents, userLatitude, userLongitude, RADIUS_KM);
+
+        android.util.Log.d("MainActivity", "Filtered " + filteredEvents.size() + " events within " + RADIUS_KM + "km");
+
+        // Clear existing markers
+        com.kakao.vectormap.label.LabelLayer labelLayer = getOrCreateLabelLayer();
+        if (labelLayer != null) {
+            labelLayer.removeAll();
+            android.util.Log.d("MainActivity", "Cleared all markers from layer");
+        }
+
+        if (filteredEvents.isEmpty()) {
+            android.widget.Toast.makeText(this,
+                "반경 " + RADIUS_KM + "km 내에 이벤트가 없습니다. 모든 이벤트를 표시합니다.",
+                android.widget.Toast.LENGTH_LONG).show();
+            // Display all events if none are nearby
+            addMarkersToMap(pendingEvents);
+            updateBottomSheetWithEvents(pendingEvents);
+        } else {
+            // Display filtered events
+            addMarkersToMap(filteredEvents);
+            updateBottomSheetWithEvents(filteredEvents);
+        }
+
+        // Re-add user location marker after clearing and adding event markers
+        if (userLatitude != 0.0 && userLongitude != 0.0) {
+            com.kakao.vectormap.LatLng userPosition = com.kakao.vectormap.LatLng.from(userLatitude, userLongitude);
+            updateUserLocationMarker(userPosition);
+        }
+    }
+
+    /**
+     * Add or update user location marker on the map
+     */
+    private void updateUserLocationMarker(com.kakao.vectormap.LatLng position) {
+        if (kakaoMap == null) {
+            android.util.Log.w("MainActivity", "Cannot add user marker - map not ready");
+            return;
+        }
+
+        com.kakao.vectormap.label.LabelLayer labelLayer = getOrCreateLabelLayer();
+        if (labelLayer == null) {
+            android.util.Log.e("MainActivity", "Cannot add user marker - layer not available");
+            return;
+        }
+
+        // Remove old marker if exists
+        if (userLocationMarker != null) {
+            try {
+                labelLayer.remove(userLocationMarker);
+                android.util.Log.d("MainActivity", "Removed old user location marker");
+            } catch (Exception e) {
+                android.util.Log.w("MainActivity", "Could not remove old marker: " + e.getMessage());
+            }
+            userLocationMarker = null;
+        }
+
+        // Add new marker for user location (using PNG marker like events)
+        try {
+            userLocationMarker = labelLayer.addLabel(
+                com.kakao.vectormap.label.LabelOptions.from("user_location", position)
+                    .setStyles(R.drawable.yellow_marker) // Use PNG from drawable-nodpi
+                    .setClickable(false)
+            );
+            android.util.Log.d("MainActivity", "✓ User location marker added at: " + position.getLatitude() + ", " + position.getLongitude());
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "✗ Failed to add user location marker: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                          @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == LocationHelper.LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, start tracking
+                startLocationTracking();
+            } else {
+                // Permission denied
+                android.widget.Toast.makeText(this,
+                    "위치 권한이 필요합니다. 모든 이벤트를 표시합니다.",
+                    android.widget.Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Stop location updates when activity is destroyed
+        if (locationHelper != null) {
+            locationHelper.stopLocationUpdates();
+        }
     }
 
 }
