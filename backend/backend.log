@@ -1,0 +1,17 @@
+>> [System] Database & Routes linked successfully.
+>> [System] Database & Routes linked successfully.
+>> [Scheduler] Background Scheduler Started.
+>> [LocalNow] Server is Starting on Port 5002...
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5003
+ * Running on http://192.168.0.11:5003
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [07/Dec/2025 01:44:41] "POST /auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [07/Dec/2025 01:44:41] "GET /api/events HTTP/1.1" 200 -
+/Users/gimjiho/Desktop/LocalNow/backend/app.py:44: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  return User.query.get(int(user_id))
+127.0.0.1 - - [07/Dec/2025 01:44:50] "GET /api/events HTTP/1.1" 200 -
+127.0.0.1 - - [07/Dec/2025 01:44:50] "GET /api/bookmarks/ HTTP/1.1" 200 -

@@ -1,0 +1,46 @@
+>> [System] Database & Routes linked successfully.
+>> Manually triggering crawling job...
+>> [Scheduler] Daily Crawling Started...
+ 공공데이터 조회 중... (시작일: 20251206)
+❌ 공공데이터 조회 오류: Expecting value: line 1 column 1 (char 0)
+응답 본문: Unexpected errors
+
+>> [Scheduler] Venue Crawling Started...
+Crawling Incheon Tour: https://itour.incheon.go.kr/
+Found 11 items in Incheon Tour slider
+Crawling Yeonsu Foundation: https://www.ysfac.or.kr/user/board/list.php?board_code=notice
+Found 14 rows in Yeonsu Notice
+  -> 2026년 아트플러그 연수 <연수 체크인> 입주작가 모집 공고 @ 연수문화재단 (37.42629749575945, 126.667662435084)
+  -> 2026년 상반기 아트플러그 연수 전시실 대관 모집 공고 @ 아트플러그 연수(전시실 A, 전시실 B, 미디어 전시실) (37.42629749575945, 126.667662435084)
+  -> 2026년 아트플러그 연수 <연수 체크인> 입주작가 모집 공고 @ 연수문화재단 (37.42629749575945, 126.667662435084)
+  -> 2026년 상반기 아트플러그 연수 전시실 대관 모집 공고 @ 아트플러그 연수(전시실 A, 전시실 B, 미디어 전시실) (37.42629749575945, 126.667662435084)
+  -> 2025 <연수합창제> 개최 @ 연수문화재단 (37.42629749575945, 126.667662435084)
+  -> [안내] 2025 송도해변축제 운영 안내(8/13일) @ 연수문화재단 (37.42629749575945, 126.667662435084)
+  -> [모집] 2025 하반기 문화의집 녹청자 프로그램 참여자 모집 @ 연수문화재단 (37.42629749575945, 126.667662435084)
+  -> [모집] 2025 문화예술교육 '상상오름 프로젝트' <상상 UP! 가족 스토리 팩토리-인천 설화 웹툰·웹소설> 참가자 모집 @ 아트플러그 연수 (옥련동 / 주차 가능) (37.42629749575945, 126.667662435084)
+  -> [모집] 2025 하반기 문화의집 목공 프로그램 참여자 모집 @ 연수문화재단 (37.42629749575945, 126.667662435084)
+Crawling Triple Street: https://www.triplestreet.co.kr/
+Found 4 items in Triple Street Notice
+Crawling Incheon Cultural Foundation: https://www.ifac.or.kr/culturalInfo/cuturalEvents/performanceSrch/list.do?key=m2501152621396
+Found 36 items in Incheon Cultural Foundation
+Crawling Incheon Arts Center: https://www.incheon.go.kr/art/ART010101
+Found 10 items in Incheon Arts Center
+Crawling Songdo Convensia (via Naver search)...
+Found 0 items via Naver search for Songdo Convensia
+Crawling Songdo Community Centers...
+Crawling 송도1동: https://www.yeonsu.go.kr/edu/sub/apply.asp?team_idx=39
+Found 60 items in 송도1동
+Crawling 송도2동: https://www.yeonsu.go.kr/edu/sub/apply.asp?team_idx=53
+Found 60 items in 송도2동
+Crawling 송도3동: https://www.yeonsu.go.kr/edu/sub/apply.asp?team_idx=64
+Found 60 items in 송도3동
+Crawling 송도4동: https://www.yeonsu.go.kr/edu/sub/apply.asp?team_idx=70
+Found 60 items in 송도4동
+Crawling 송도5동: https://www.yeonsu.go.kr/edu/sub/apply.asp?team_idx=77
+Found 60 items in 송도5동
+>> [Scheduler] Crawling Finished. 77 items found.
+>> [Scheduler] Crawling Finished. 77 items found, 0 new items saved.
+Warning: serviceAccountKey.json not found. Push notifications will not work.
+>> Checking for keyword notifications...
+>> No new events found for notifications.
+>> Job finished.

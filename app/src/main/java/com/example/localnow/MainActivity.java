@@ -37,12 +37,14 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onMapReady(com.kakao.vectormap.KakaoMap map) {
                             kakaoMap = map;
-                            com.kakao.vectormap.LatLng songdoPosition = com.kakao.vectormap.LatLng.from(37.3948,
-                                    126.6392);
+                            // Center map at Incheon Arts Center area where most events are
+                            com.kakao.vectormap.LatLng eventCenterPosition = com.kakao.vectormap.LatLng.from(37.4478,
+                                    126.7001);
                             com.kakao.vectormap.camera.CameraUpdate cameraUpdate = com.kakao.vectormap.camera.CameraUpdateFactory
-                                    .newCenterPosition(songdoPosition, 15);
+                                    .newCenterPosition(eventCenterPosition, 12); // Zoom out to see more events
                             kakaoMap.moveCamera(cameraUpdate);
-                            android.util.Log.d("MainActivity", "Map initialized successfully at Songdo");
+                            android.util.Log.d("MainActivity",
+                                    "Map initialized at Incheon Arts Center (37.4478, 126.7001)");
 
                             // Add markers if events were already fetched
                             if (!pendingEvents.isEmpty()) {
@@ -67,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
         btnSearch = findViewById(R.id.btnSearch);
 
         btnNotification.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, NotificationActivity.class);
+            Intent intent = new Intent(MainActivity.this, KeywordSettingsActivity.class);
             startActivity(intent);
         });
 
@@ -122,8 +124,7 @@ public class MainActivity extends AppCompatActivity {
                                 updateBottomSheetWithEvents(events);
                                 // Add markers to map (if map is ready)
                                 addMarkersToMap(events);
-                                // Schedule notifications
-                                scheduleEventNotifications(events);
+                                // Note: Notifications are now handled server-side for bookmarked events only
                             } else {
                                 android.util.Log.w("MainActivity", "⚠️ No events found in response");
                                 android.widget.Toast.makeText(MainActivity.this, "이벤트 데이터가 없습니다",
@@ -148,48 +149,110 @@ public class MainActivity extends AppCompatActivity {
 
     private void addMarkersToMap(java.util.List<com.example.localnow.model.Event> events) {
         if (kakaoMap == null) {
-            android.util.Log.w("MainActivity", "KakaoMap is not ready yet - will retry later");
+            android.util.Log.w("MainActivity", "KakaoMap is not ready yet");
             return;
         }
 
-        android.util.Log.d("MainActivity", "Adding markers for " + events.size() + " events");
+        android.util.Log.d("MainActivity", "🗺️ Adding " + events.size() + " markers to map");
 
-        // Get LabelManager and LabelLayer (official sample pattern)
+        // Get LabelManager and default layer
         com.kakao.vectormap.label.LabelManager labelManager = kakaoMap.getLabelManager();
         com.kakao.vectormap.label.LabelLayer labelLayer = labelManager.getLayer();
 
-        if (labelLayer == null) {
-            labelLayer = labelManager.addLayer(
-                    com.kakao.vectormap.label.LabelLayerOptions.from("eventLayer"));
-        }
+        // Create simple marker bitmap (red dot)
+        int size = 32;
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(size, size,
+                android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(0xFFFF4757);
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
+        paint.setColor(0xFFFFFFFF);
+        paint.setStyle(android.graphics.Paint.Style.STROKE);
+        paint.setStrokeWidth(2);
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
 
-        int markerCount = 0;
+        android.util.Log.d("MainActivity", "📍 Created " + size + "px marker");
+
+        // Simple LabelStyle
+        com.kakao.vectormap.label.LabelStyle style = com.kakao.vectormap.label.LabelStyle.from(bitmap);
+        com.kakao.vectormap.label.LabelStyles styles = com.kakao.vectormap.label.LabelStyles.from(style);
+
+        // Store events for click
+        final java.util.Map<String, com.example.localnow.model.Event> eventMap = new java.util.HashMap<>();
+        int count = 0;
+
         for (com.example.localnow.model.Event event : events) {
             double lat = event.getLat();
             double lng = event.getLng();
-
-            // Skip events without valid coordinates
-            if (lat == 0.0 || lng == 0.0) {
+            if (lat == 0.0 || lng == 0.0)
                 continue;
-            }
 
             try {
-                com.kakao.vectormap.LatLng position = com.kakao.vectormap.LatLng.from(lat, lng);
-                String labelId = "event_" + event.getId();
+                // Add small random jitter to separate overlapping markers
+                // 0.0001 degrees is approx 11 meters. 0.0003 is approx 33m.
+                double jitterLat = (Math.random() - 0.5) * 0.0006;
+                double jitterLng = (Math.random() - 0.5) * 0.0006;
 
-                // Official sample pattern: addLabel with setStyles(R.drawable.xxx)
+                com.kakao.vectormap.LatLng position = com.kakao.vectormap.LatLng.from(lat + jitterLat, lng + jitterLng);
+                String id = "m" + count;
+                eventMap.put(id, event);
+
                 labelLayer.addLabel(
-                        com.kakao.vectormap.label.LabelOptions.from(labelId, position)
-                                .setStyles(R.drawable.pink_marker) // Use PNG from drawable-nodpi
+                        com.kakao.vectormap.label.LabelOptions.from(id, position)
+                                .setStyles(styles)
                                 .setClickable(true));
-
-                markerCount++;
+                count++;
             } catch (Exception e) {
-                android.util.Log.e("MainActivity",
-                        "Failed to add marker for " + event.getTitle() + ": " + e.getMessage());
+                android.util.Log.e("MainActivity", "Marker error: " + e.getMessage());
             }
         }
-        android.util.Log.d("MainActivity", "Total markers added: " + markerCount + "/" + events.size());
+
+        android.util.Log.d("MainActivity", "✅ " + count + " markers added");
+
+        // Click listener
+        kakaoMap.setOnLabelClickListener((map, layer, label) -> {
+            com.example.localnow.model.Event ev = eventMap.get(label.getLabelId());
+            if (ev != null)
+                showEventDetailDialog(ev);
+            return true;
+        });
+    }
+
+    // Calculate distance between two coordinates in meters
+    private double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+        double R = 6371000; // Earth radius in meters
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    private void showEventDetailDialog(com.example.localnow.model.Event event) {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(event.getTitle())
+                .setMessage(
+                        "📍 " + (event.getLocation() != null ? event.getLocation() : "장소 미정") + "\n\n" +
+                                "📅 " + (event.getDate() != null ? event.getDate() : "날짜 미정") + "\n\n" +
+                                "🏷️ " + (event.getCategory() != null ? event.getCategory() : "기타") + "\n\n" +
+                                (event.getDescription() != null ? event.getDescription() : ""))
+                .setPositiveButton("자세히 보기", (dialog, which) -> {
+                    // Navigate to event detail
+                    Intent intent = new Intent(MainActivity.this, EventDetailActivity.class);
+                    intent.putExtra("event_id", event.getId());
+                    intent.putExtra("event_title", event.getTitle());
+                    intent.putExtra("event_date", event.getDate());
+                    intent.putExtra("event_location", event.getLocation());
+                    intent.putExtra("event_category", event.getCategory());
+                    intent.putExtra("event_description", event.getDescription());
+                    intent.putExtra("event_image", event.getImage());
+                    startActivity(intent);
+                })
+                .setNegativeButton("닫기", null)
+                .show();
     }
 
     private void updateBottomSheetWithEvents(java.util.List<com.example.localnow.model.Event> events) {

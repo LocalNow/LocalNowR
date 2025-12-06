@@ -7,6 +7,9 @@ public class GlobalApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
+        // Initialize ThreeTenABP
+        com.jakewharton.threetenabp.AndroidThreeTen.init(this);
+
         // Kakao Map SDK initialization
         try {
             android.content.pm.ApplicationInfo appInfo = getPackageManager().getApplicationInfo(getPackageName(),

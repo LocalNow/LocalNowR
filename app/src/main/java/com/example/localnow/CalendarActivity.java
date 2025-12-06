@@ -1,8 +1,8 @@
 package com.example.localnow;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.CalendarView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
@@ -10,7 +10,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.localnow.adapters.EventAdapter;
 import com.example.localnow.model.Event;
-import java.text.SimpleDateFormat;
+import com.example.localnow.utils.EventDecorator;
+import com.prolificinteractive.materialcalendarview.CalendarDay;
+import com.prolificinteractive.materialcalendarview.MaterialCalendarView;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashSet;
@@ -20,7 +22,7 @@ import java.util.Set;
 
 public class CalendarActivity extends AppCompatActivity {
 
-    private CalendarView calendarView;
+    private MaterialCalendarView calendarView;
     private RecyclerView recyclerView;
     private EventAdapter adapter;
     private List<Event> allEvents;
@@ -49,10 +51,14 @@ public class CalendarActivity extends AppCompatActivity {
         fetchEvents();
         fetchBookmarks();
 
-        calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
-            String selectedDate = String.format(Locale.getDefault(), "%04d-%02d-%02d", year, month + 1, dayOfMonth);
+        calendarView.setOnDateChangedListener((widget, date, selected) -> {
+            String selectedDate = String.format(Locale.getDefault(), "%04d-%02d-%02d", date.getYear(), date.getMonth(),
+                    date.getDay());
             updateEventsForDate(selectedDate);
         });
+
+        // Set current date selected
+        calendarView.setSelectedDate(CalendarDay.today());
     }
 
     private void fetchEvents() {
@@ -65,12 +71,12 @@ public class CalendarActivity extends AppCompatActivity {
                             List<Event> events = response.body().getData();
                             if (events != null) {
                                 allEvents = events;
-                                // Show today's events
-                                Calendar today = Calendar.getInstance();
+                                markEventDays(events);
+
+                                // Show today's events initially
+                                CalendarDay today = CalendarDay.today();
                                 String todayStr = String.format(Locale.getDefault(), "%04d-%02d-%02d",
-                                        today.get(Calendar.YEAR),
-                                        today.get(Calendar.MONTH) + 1,
-                                        today.get(Calendar.DAY_OF_MONTH));
+                                        today.getYear(), today.getMonth(), today.getDay());
                                 updateEventsForDate(todayStr);
                             }
                         }
@@ -82,6 +88,46 @@ public class CalendarActivity extends AppCompatActivity {
                                 android.widget.Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    private void markEventDays(List<Event> events) {
+        List<CalendarDay> days = new ArrayList<>();
+        for (Event event : events) {
+            String startStr = event.getStartDate();
+            String endStr = event.getEndDate();
+
+            if (startStr != null && endStr != null) {
+                // Handle Range
+                try {
+                    CalendarDay startDay = parseDate(startStr);
+                    CalendarDay endDay = parseDate(endStr);
+
+                    if (startDay != null && endDay != null) {
+                        CalendarDay current = startDay;
+                        // Limit loop to avoid infinite loop or too many days (e.g. max 365 days)
+                        int count = 0;
+                        while (!current.isAfter(endDay) && count < 365) {
+                            days.add(current);
+                            // Add 1 day
+                            java.time.LocalDate date = java.time.LocalDate.of(current.getYear(), current.getMonth(),
+                                    current.getDay());
+                            date = date.plusDays(1);
+                            current = CalendarDay.from(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+                            count++;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Fallback to single date
+                    addSingleDate(days, event.getDate());
+                }
+            } else {
+                // Fallback to single date
+                addSingleDate(days, event.getDate());
+            }
+        }
+
+        // Add Decorator
+        calendarView.addDecorator(new EventDecorator(Color.parseColor("#FF6B6B"), days));
     }
 
     private void fetchBookmarks() {
@@ -101,7 +147,7 @@ public class CalendarActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(retrofit2.Call<com.example.localnow.model.EventResponse> call, Throwable t) {
-                        // Silent fail - bookmarks are optional
+                        // Silent fail
                     }
                 });
     }
@@ -129,29 +175,59 @@ public class CalendarActivity extends AppCompatActivity {
         }
     }
 
+    private CalendarDay parseDate(String dateStr) {
+        // Supports YYYY-MM-DD or YYYYMMDD
+        try {
+            String cleanDate = dateStr.replace("-", "").replace(".", "");
+            if (cleanDate.length() >= 8) {
+                int year = Integer.parseInt(cleanDate.substring(0, 4));
+                int month = Integer.parseInt(cleanDate.substring(4, 6));
+                int day = Integer.parseInt(cleanDate.substring(6, 8));
+                return CalendarDay.from(year, month, day);
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
+    }
+
+    private void addSingleDate(List<CalendarDay> days, String dateStr) {
+        CalendarDay day = parseDate(dateStr);
+        if (day != null) {
+            days.add(day);
+        }
+    }
+
     private void updateEventsForDate(String selectedDate) {
         List<Event> eventsOnDate = new ArrayList<>();
+        // selectedDate format: YYYY-MM-DD
+        String cleanSelected = selectedDate.replace("-", "");
 
         for (Event event : allEvents) {
-            if (isEventOnDate(event, selectedDate)) {
-                eventsOnDate.add(event);
+            String startStr = event.getStartDate();
+            String endStr = event.getEndDate();
+
+            if (startStr != null && endStr != null) {
+                // Range Check
+                String cleanStart = startStr.replace("-", "").replace(".", "");
+                String cleanEnd = endStr.replace("-", "").replace(".", "");
+
+                if (cleanSelected.compareTo(cleanStart) >= 0 && cleanSelected.compareTo(cleanEnd) <= 0) {
+                    eventsOnDate.add(event);
+                    continue;
+                }
+            }
+
+            // Fallback: Check exact match or start match
+            String eventDate = event.getDate();
+            if (eventDate != null) {
+                String cleanEventDate = eventDate.replace("-", "").replace(".", "");
+                if (cleanEventDate.startsWith(cleanSelected)) {
+                    eventsOnDate.add(event);
+                }
             }
         }
 
         adapter.updateList(eventsOnDate);
-    }
-
-    private boolean isEventOnDate(Event event, String date) {
-        String startDate = event.getStartDate();
-        String endDate = event.getEndDate();
-
-        if (startDate == null || startDate.isEmpty()) {
-            return false;
-        }
-        if (endDate == null || endDate.isEmpty()) {
-            endDate = startDate;
-        }
-
-        return date.compareTo(startDate) >= 0 && date.compareTo(endDate) <= 0;
     }
 }

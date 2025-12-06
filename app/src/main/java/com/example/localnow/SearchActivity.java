@@ -62,14 +62,12 @@ public class SearchActivity extends AppCompatActivity {
                     currentCategory = "전체";
                 else if (checkedId == R.id.chipFestival)
                     currentCategory = "축제";
-                else if (checkedId == R.id.chipPerformance)
-                    currentCategory = "공연";
-                else if (checkedId == R.id.chipExhibition)
-                    currentCategory = "전시";
-                else if (checkedId == R.id.chipMarket)
-                    currentCategory = "플리마켓";
-                else if (checkedId == R.id.chipOther)
-                    currentCategory = "기타";
+                else if (checkedId == R.id.chipCulture)
+                    currentCategory = "문화/예술";
+                else if (checkedId == R.id.chipPerformanceExhibition)
+                    currentCategory = "공연/전시";
+                else if (checkedId == R.id.chipEducation)
+                    currentCategory = "교육/강좌";
             }
             filterEvents();
         });
@@ -105,7 +103,29 @@ public class SearchActivity extends AppCompatActivity {
             // Category filter
             if (!currentCategory.equals("전체")) {
                 String eventCategory = event.getCategory();
-                if (eventCategory == null || !eventCategory.equals(currentCategory)) {
+                if (eventCategory == null) {
+                    continue;
+                }
+
+                // Check for match: exact match or contains the base keyword
+                boolean categoryMatch = false;
+                if (eventCategory.equals(currentCategory)) {
+                    categoryMatch = true;
+                } else if (currentCategory.contains("/")) {
+                    // For compound categories like "문화/예술", check if event contains any part
+                    String[] parts = currentCategory.split("/");
+                    for (String part : parts) {
+                        if (eventCategory.contains(part)) {
+                            categoryMatch = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // For simple categories like "축제", check if event category contains it
+                    categoryMatch = eventCategory.contains(currentCategory);
+                }
+
+                if (!categoryMatch) {
                     continue;
                 }
             }

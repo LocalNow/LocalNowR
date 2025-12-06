@@ -30,13 +30,14 @@
 
         <!-- Pages -->
         <activity android:name=".MainActivity" />
-        <activity android:name=".NotificationActivity" />
+        <activity android:name=".NotificationActivity" android:exported="false" />
         <activity android:name=".SearchActivity" />
         <activity android:name=".BookmarkActivity" />
         <activity android:name=".EventDetailActivity" />
         <activity android:name=".LoginActivity" />
         <activity android:name=".SignupActivity" />
-        <activity android:name=".CalendarActivity" />
+        <activity android:name=".CalendarActivity" android:exported="false" />
+        <activity android:name=".KeywordSettingsActivity" android:exported="false" />
     </application>
 
 </manifest>

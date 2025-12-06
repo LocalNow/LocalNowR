@@ -96,9 +96,9 @@ class VenueCrawler:
                     date_text = "" # Default if not found
                     start_date, end_date = self.parse_date_range(date_text)
                     
-                    # 날짜 필터링 (어제 날짜 이후만 포함)
-                    yesterday = datetime.now() - timedelta(days=1)
-                    if end_date and end_date < yesterday:
+                    # 날짜 필터링 (오늘 이후 이벤트만)
+                    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                    if end_date and end_date < today:
                         continue
                     
                     # 좌표 변환
@@ -137,17 +137,15 @@ class VenueCrawler:
         
         try:
             self.driver.get(url)
-            time.sleep(5)
+            time.sleep(3)
             
-            # 테이블 로우 찾기
-            # 보통 board_list 클래스나 tbody tr 사용
             rows = self.driver.find_elements(By.CSS_SELECTOR, "tbody tr")
             print(f"Found {len(rows)} rows in Yeonsu Notice")
             
+            # 1. Collect links first
+            links_data = []
             for row in rows:
                 try:
-                    # 제목과 링크 추출
-                    # 보통 td.title a 또는 td.subject a
                     try:
                         link_elem = row.find_element(By.CSS_SELECTOR, "td.title a")
                     except:
@@ -156,40 +154,86 @@ class VenueCrawler:
                     title = link_elem.text.strip()
                     link = link_elem.get_attribute("href")
                     
-                    # 날짜 추출 (모든 컬럼 검사)
+                    # Date extraction
                     date_text = datetime.now().strftime("%Y%m%d")
                     cols = row.find_elements(By.TAG_NAME, "td")
                     for col in cols:
                         txt = col.text.strip()
-                        # YYYY.MM.DD or YYYY-MM-DD pattern
                         if re.search(r'\d{4}[\.-]\d{2}[\.-]\d{2}', txt):
                             date_text = txt.replace("-", "").replace(".", "")
                             break
                     
-                    # print(f"[Yeonsu] Title: {title}, Date: {date_text}") # DEBUG
+                    links_data.append({
+                        "title": title,
+                        "link": link,
+                        "date_text": date_text
+                    })
+                except:
+                    continue
+            
+            # 2. Visit detail pages
+            for item in links_data:
+                title = item['title']
+                
+                # Keyword filter
+                if not any(keyword in title for keyword in ["공연", "전시", "축제", "행사", "모집", "개최", "페스티벌"]):
+                    continue
+                    
+                # Date parsing
+                start_date, end_date = self.parse_date_range(item['date_text'])
+                today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                if end_date and end_date < today:
+                    continue
 
-                    # 키워드 필터링 (사용자 요청: 공식적인 행사 위주)
-                    if any(keyword in title for keyword in ["공연", "전시", "축제", "행사", "모집", "개최", "페스티벌"]):
-                        # 좌표 변환 (연수문화재단 기본값 사용)
-                        geo = self.get_geo_location("연수문화재단")
+                # Visit detail page for location
+                try:
+                    self.driver.get(item['link'])
+                    time.sleep(1)
+                    
+                    place = "연수문화재단" # Default
+                    
+                    # Try to find place
+                    try:
+                        # Look for th containing '장소' or '위치'
+                        xpath = "//th[contains(text(), '장소') or contains(text(), '위치')]/following-sibling::td"
+                        place_elem = self.driver.find_element(By.XPATH, xpath)
+                        place_text = place_elem.text.strip()
+                        if place_text:
+                            place = place_text
+                    except:
+                        # Try body text regex
+                        try:
+                            body_text = self.driver.find_element(By.TAG_NAME, "body").text
+                            match = re.search(r"(장\s*소|위\s*치)\s*[:]\s*(.+)", body_text)
+                            if match:
+                                place = match.group(2).strip().split("\n")[0]
+                        except:
+                            pass
+                    
+                    # Geocoding
+                    lat, lng = self.geocode_place(place)
+                    if lat == 0.0:
+                        # Fallback to foundation office if specific place not found
+                        lat, lng = self.geocode_place("연수문화재단")
                         
-                        results.append({
-                            "title": title,
-                            "category": "문화/예술",
-                            "date": date_text,
-                            "start_date": start_date,
-                            "end_date": end_date,
-                            "location": "연수문화재단",
-                            "lat": geo['lat'] if geo else 0.0,
-                            "lng": geo['lng'] if geo else 0.0,
-                            "description": "연수문화재단 공지사항",
-                            "image": "",
-                            "source": "YeonsuFoundation",
-                            "link": link
-                        })
+                    results.append({
+                        "title": title,
+                        "category": "문화/예술",
+                        "date": item['date_text'],
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "location": place,
+                        "lat": lat,
+                        "lng": lng,
+                        "description": "연수문화재단 공지사항",
+                        "image": "",
+                        "source": "YeonsuFoundation",
+                        "link": item['link']
+                    })
+                    print(f"  -> {title} @ {place} ({lat}, {lng})")
+                    
                 except Exception as e:
-                    # print(f"Row parsing error: {e}")
-                    pass
+                    print(f"Error visiting {item['link']}: {e}")
                     
         except Exception as e:
             print(f"Error crawling Yeonsu Foundation: {e}")
@@ -224,9 +268,9 @@ class VenueCrawler:
                     except:
                         formatted_date = datetime.now().strftime("%Y%m%d")
 
-                    # 날짜 필터링 (어제 날짜 이후만 포함)
-                    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
-                    if formatted_date < yesterday:
+                    # 날짜 필터링 (오늘 이후 이벤트만)
+                    today_str = datetime.now().strftime("%Y%m%d")
+                    if formatted_date < today_str:
                         continue
 
                     # 좌표 변환 (트리플스트리트)
@@ -322,9 +366,9 @@ class VenueCrawler:
                     # Date parsing
                     start_date, end_date = self.parse_date_range(date_text)
                     
-                    # Filter by date (yesterday onwards)
-                    yesterday = datetime.now() - timedelta(days=1)
-                    if end_date and end_date < yesterday:
+                    # Filter by date (today onwards - future events only)
+                    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                    if end_date and end_date < today:
                         continue
 
                     # Geocoding
@@ -388,9 +432,9 @@ class VenueCrawler:
                     # Date parsing
                     start_date, end_date = self.parse_date_range(date_text)
                     
-                    # Filter by date (yesterday onwards)
-                    yesterday = datetime.now() - timedelta(days=1)
-                    if end_date and end_date < yesterday:
+                    # Filter by date (today onwards - future events only)
+                    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                    if end_date and end_date < today:
                         continue
 
                     # Geocoding
@@ -423,11 +467,62 @@ class VenueCrawler:
     def crawl_songdo_convensia(self):
         """
         5. 송도컨벤시아 (Songdo Convensia)
-        URL: https://www.songdoconvensia.com/site/convensia/exhibition/exhibitionList.do
+        공식 사이트가 다운되어 있어 네이버 블로그 검색으로 대체
         """
-        print("Crawling Songdo Convensia: https://www.songdoconvensia.com/site/convensia/exhibition/exhibitionList.do")
-        print("Skipping Songdo Convensia due to connection issues (ERR_CONNECTION_REFUSED).")
-        return []
+        print("Crawling Songdo Convensia (via Naver search)...")
+        results = []
+        
+        try:
+            # 네이버 블로그 검색으로 송도컨벤시아 행사 검색
+            url = "https://openapi.naver.com/v1/search/blog.json"
+            headers = {
+                "X-Naver-Client-Id": os.environ.get("NAVER_CLIENT_ID", ""),
+                "X-Naver-Client-Secret": os.environ.get("NAVER_CLIENT_SECRET", "")
+            }
+            
+            if not headers["X-Naver-Client-Id"]:
+                print("  -> Naver API keys not found, skipping.")
+                return []
+            
+            params = {"query": "송도컨벤시아 전시 행사 2025", "display": 10, "sort": "date"}
+            resp = requests.get(url, headers=headers, params=params, timeout=10)
+            data = resp.json()
+            items = data.get('items', [])
+            
+            for item in items:
+                title = re.sub('<.+?>', '', item['title'])
+                desc = re.sub('<.+?>', '', item['description'])
+                
+                # 송도컨벤시아 관련 글만 필터링
+                if "송도컨벤시아" not in title and "송도컨벤시아" not in desc:
+                    continue
+                
+                # 행사 키워드 확인
+                event_keywords = ["전시", "박람회", "페어", "컨퍼런스", "엑스포", "행사"]
+                if not any(kw in title or kw in desc for kw in event_keywords):
+                    continue
+                
+                # 송도컨벤시아 좌표 (고정값)
+                results.append({
+                    "title": title,
+                    "category": "전시",
+                    "date": item.get('postdate', ''),
+                    "start_date": None,
+                    "end_date": None,
+                    "location": "송도컨벤시아",
+                    "lat": 37.3933,
+                    "lng": 126.6344,
+                    "description": desc[:200],
+                    "image": "",
+                    "source": "NaverBlog-Convensia",
+                    "link": item['link']
+                })
+            
+            print(f"Found {len(results)} items via Naver search for Songdo Convensia")
+        except Exception as e:
+            print(f"Songdo Convensia crawling failed: {e}")
+        
+        return results
 
     def crawl_songdo_community(self):
         """
@@ -516,9 +611,9 @@ class VenueCrawler:
 
                         start_date, end_date = self.parse_date_range(date_text)
                         
-                        # Filter by date (yesterday onwards)
-                        yesterday = datetime.now() - timedelta(days=1)
-                        if end_date and end_date < yesterday:
+                        # Filter by date (today onwards - future events only)
+                        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                        if end_date and end_date < today:
                             continue
 
                         # Geocoding

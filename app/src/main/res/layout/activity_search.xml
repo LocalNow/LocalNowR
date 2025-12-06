@@ -78,32 +78,25 @@
                 android:text="축제" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipPerformance"
+                android:id="@+id/chipCulture"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="공연" />
+                android:text="문화/예술" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipExhibition"
+                android:id="@+id/chipPerformanceExhibition"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="전시" />
+                android:text="공연/전시" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chipMarket"
+                android:id="@+id/chipEducation"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="플리마켓" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipOther"
-                style="@style/Widget.MaterialComponents.Chip.Choice"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="기타" />
+                android:text="교육/강좌" />
 
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>

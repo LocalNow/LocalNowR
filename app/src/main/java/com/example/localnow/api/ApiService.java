@@ -36,4 +36,10 @@ public interface ApiService {
 
     @GET("/api/bookmarks/")
     Call<com.example.localnow.model.EventResponse> getBookmarks();
+
+    @GET("/api/user/keywords")
+    Call<com.example.localnow.model.KeywordResponse> getKeywords();
+
+    @POST("/api/user/keywords")
+    Call<Void> updateKeywords(@Body com.example.localnow.model.KeywordRequest request);
 }
