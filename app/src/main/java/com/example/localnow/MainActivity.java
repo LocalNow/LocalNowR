@@ -152,14 +152,15 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        android.util.Log.d("MainActivity", "🗺️ Adding markers for " + events.size() + " events");
+        android.util.Log.d("MainActivity", "Adding markers for " + events.size() + " events");
 
-        // Use LabelManager to add labels
+        // Get LabelManager and LabelLayer (official sample pattern)
         com.kakao.vectormap.label.LabelManager labelManager = kakaoMap.getLabelManager();
-        com.kakao.vectormap.label.LabelLayer layer = labelManager.getLayer();
+        com.kakao.vectormap.label.LabelLayer labelLayer = labelManager.getLayer();
 
-        if (layer == null) {
-            layer = labelManager.addLayer(com.kakao.vectormap.label.LabelLayerOptions.from("eventLayer"));
+        if (labelLayer == null) {
+            labelLayer = labelManager.addLayer(
+                    com.kakao.vectormap.label.LabelLayerOptions.from("eventLayer"));
         }
 
         int markerCount = 0;
@@ -169,7 +170,6 @@ public class MainActivity extends AppCompatActivity {
 
             // Skip events without valid coordinates
             if (lat == 0.0 || lng == 0.0) {
-                android.util.Log.d("MainActivity", "Skipping " + event.getTitle() + " - no coordinates");
                 continue;
             }
 
@@ -177,20 +177,16 @@ public class MainActivity extends AppCompatActivity {
                 com.kakao.vectormap.LatLng position = com.kakao.vectormap.LatLng.from(lat, lng);
                 String labelId = "event_" + event.getId();
 
-                // Create label options with position
-                com.kakao.vectormap.label.LabelOptions labelOptions = com.kakao.vectormap.label.LabelOptions
-                        .from(labelId, position)
-                        .setStyles(R.mipmap.ic_launcher) // Use mipmap PNG directly
-                        .setClickable(true);
+                // Official sample pattern: addLabel with setStyles(R.drawable.xxx)
+                labelLayer.addLabel(
+                        com.kakao.vectormap.label.LabelOptions.from(labelId, position)
+                                .setStyles(R.drawable.pink_marker) // Use PNG from drawable-nodpi
+                                .setClickable(true));
 
-                layer.addLabel(labelOptions);
                 markerCount++;
-                android.util.Log.d("MainActivity",
-                        "Added marker: " + event.getTitle() + " at (" + lat + ", " + lng + ")");
             } catch (Exception e) {
                 android.util.Log.e("MainActivity",
                         "Failed to add marker for " + event.getTitle() + ": " + e.getMessage());
-                e.printStackTrace();
             }
         }
         android.util.Log.d("MainActivity", "Total markers added: " + markerCount + "/" + events.size());

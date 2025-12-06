@@ -1,5 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from crawler import DataCrawler
+from venue_crawler import VenueCrawler
 from models import db, Event
 from app import app
 import atexit
@@ -8,15 +9,20 @@ import time
 def run_crawling_job():
     print(">> [Scheduler] Daily Crawling Started...")
     try:
-        # 1. 크롤링 실행
+        # 1. 공공데이터 + 네이버 블로그 크롤링
         crawler = DataCrawler()
         public_data = crawler.fetch_public_festivals()
         blog_data = crawler.fetch_naver_blogs()
-        # 3. 인스타그램 (삭제됨)
         
-        all_data = public_data + blog_data
+        # 2. Venue 크롤링 (공식 행사장)
+        print(">> [Scheduler] Venue Crawling Started...")
+        venue_crawler = VenueCrawler()
+        venue_data = venue_crawler.crawl_all()
+        venue_crawler.close()
         
-        print(f">> [Scheduler] Crawling Finished. {len(public_data) + len(blog_data)} items found.")
+        all_data = public_data + blog_data + venue_data
+        
+        print(f">> [Scheduler] Crawling Finished. {len(all_data)} items found.")
         # 2. DB 저장
         with app.app_context():
             new_count = 0

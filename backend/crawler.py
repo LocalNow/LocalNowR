@@ -248,33 +248,6 @@ class DataCrawler:
             except Exception as e:
                 print(f" 검색 오류 ({keyword}): {e}")
             
-        # 3. Venue Crawling (New)
-        try:
-            print("Starting Venue Crawling...")
-            vc = VenueCrawler()
-            venue_data = vc.crawl_all()
-            vc.close()
-            
-            for item in venue_data:
-                # 중복 체크
-                if item['title'] not in self.seen_titles:
-                    self.seen_titles.add(item['title'])
-                    
-                    # 좌표가 0.0이면 위치 검색 시도
-                    if item['lat'] == 0.0 and item['lng'] == 0.0:
-                        geo = self.get_geo_location(item['location'])
-                        if geo:
-                            item['lat'] = geo['lat']
-                            item['lng'] = geo['lng']
-                            # 위치명도 더 정확하게 업데이트
-                            if item['location'] == "인천 (상세 링크 참조)":
-                                item['location'] = geo['place_name']
-
-                    all_results.append(item)
-            print(f"Venue Crawling done. Added {len(venue_data)} items.")
-        except Exception as e:
-            print(f"Venue Crawling failed: {e}")
-
         return all_results
 
 if __name__ == "__main__":

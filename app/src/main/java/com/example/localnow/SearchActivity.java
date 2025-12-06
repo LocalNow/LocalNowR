@@ -6,12 +6,15 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.localnow.adapters.EventAdapter;
 import com.example.localnow.utils.MockData;
+import com.google.android.material.chip.ChipGroup;
 import java.util.ArrayList;
 import java.util.List;
 
 public class SearchActivity extends AppCompatActivity {
     private EventAdapter adapter;
     private List<com.example.localnow.model.Event> allEvents;
+    private String currentQuery = "";
+    private String currentCategory = "전체";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,9 +30,10 @@ public class SearchActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
 
         android.widget.EditText searchBox = findViewById(R.id.et_search);
+        ChipGroup chipGroup = findViewById(R.id.chipGroupCategory);
 
-        // Fetch events from server or use MockData
-        fetchEvents(recyclerView, searchBox);
+        // Fetch events from server
+        fetchEvents(searchBox);
 
         // Setup Search Listener
         searchBox.addTextChangedListener(new android.text.TextWatcher() {
@@ -39,16 +43,39 @@ public class SearchActivity extends AppCompatActivity {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filterEvents(s.toString());
+                currentQuery = s.toString();
+                filterEvents();
             }
 
             @Override
             public void afterTextChanged(android.text.Editable s) {
             }
         });
+
+        // Setup Category Filter Listener
+        chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) {
+                currentCategory = "전체";
+            } else {
+                int checkedId = checkedIds.get(0);
+                if (checkedId == R.id.chipAll)
+                    currentCategory = "전체";
+                else if (checkedId == R.id.chipFestival)
+                    currentCategory = "축제";
+                else if (checkedId == R.id.chipPerformance)
+                    currentCategory = "공연";
+                else if (checkedId == R.id.chipExhibition)
+                    currentCategory = "전시";
+                else if (checkedId == R.id.chipMarket)
+                    currentCategory = "플리마켓";
+                else if (checkedId == R.id.chipOther)
+                    currentCategory = "기타";
+            }
+            filterEvents();
+        });
     }
 
-    private void fetchEvents(RecyclerView recyclerView, android.widget.EditText searchBox) {
+    private void fetchEvents(android.widget.EditText searchBox) {
         com.example.localnow.api.RetrofitClient.getApiService().getEvents()
                 .enqueue(new retrofit2.Callback<com.example.localnow.model.EventResponse>() {
                     @Override
@@ -59,41 +86,43 @@ public class SearchActivity extends AppCompatActivity {
                         } else {
                             allEvents = MockData.getEvents();
                         }
-                        // Update adapter with all events initially
-                        adapter.updateList(allEvents);
-
-                        // If there's already text, filter it
-                        if (searchBox.getText().length() > 0) {
-                            filterEvents(searchBox.getText().toString());
-                        }
+                        filterEvents();
                     }
 
                     @Override
                     public void onFailure(retrofit2.Call<com.example.localnow.model.EventResponse> call,
                             Throwable t) {
                         allEvents = MockData.getEvents();
-                        adapter.updateList(allEvents);
-                        if (searchBox.getText().length() > 0) {
-                            filterEvents(searchBox.getText().toString());
-                        }
+                        filterEvents();
                     }
                 });
     }
 
-    private void filterEvents(String query) {
+    private void filterEvents() {
         List<com.example.localnow.model.Event> filteredList = new ArrayList<>();
 
-        if (query.isEmpty()) {
-            filteredList = new ArrayList<>(allEvents);
-        } else {
-            String lowerQuery = query.toLowerCase();
-            for (com.example.localnow.model.Event event : allEvents) {
-                if (event.getTitle() != null && event.getTitle().toLowerCase().contains(lowerQuery)) {
-                    filteredList.add(event);
-                } else if (event.getLocation() != null && event.getLocation().toLowerCase().contains(lowerQuery)) {
-                    filteredList.add(event);
+        for (com.example.localnow.model.Event event : allEvents) {
+            // Category filter
+            if (!currentCategory.equals("전체")) {
+                String eventCategory = event.getCategory();
+                if (eventCategory == null || !eventCategory.equals(currentCategory)) {
+                    continue;
                 }
             }
+
+            // Text search filter
+            if (!currentQuery.isEmpty()) {
+                String lowerQuery = currentQuery.toLowerCase();
+                boolean matchesTitle = event.getTitle() != null &&
+                        event.getTitle().toLowerCase().contains(lowerQuery);
+                boolean matchesLocation = event.getLocation() != null &&
+                        event.getLocation().toLowerCase().contains(lowerQuery);
+                if (!matchesTitle && !matchesLocation) {
+                    continue;
+                }
+            }
+
+            filteredList.add(event);
         }
         adapter.updateList(filteredList);
     }

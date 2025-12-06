@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 from crawler import DataCrawler
+from venue_crawler import VenueCrawler
 from models import db, Event
 
 # 블루프린트 생성 (이름: api, 접두어: /api는 app.py에서 설정함)
@@ -71,23 +72,101 @@ def test_crawling():
         public_data = crawler.fetch_public_festivals()
         
         # 2. 네이버 블로그(플리마켓 등) 수집
-        # 별도 키워드 없이 호출하면 내부 추천 키워드 리스트 전체 검색
         print(">> [Request] 네이버 블로그 수집 요청 시작...")
         blog_data = crawler.fetch_naver_blogs() 
+        
+        # 3. Venue 크롤링 (공식 행사장)
+        print(">> [Request] Venue 크롤링 시작...")
+        venue_crawler = VenueCrawler()
+        venue_data = venue_crawler.crawl_all()
+        venue_crawler.close()
         
         # 결과 합치기
         result = {
             "status": "success",
-            "total_count": len(public_data) + len(blog_data),
+            "total_count": len(public_data) + len(blog_data) + len(venue_data),
             "data": {
-                "public_festivals": public_data, # 공식 행사
-                "naver_blogs": blog_data,        # 비공식 행사 (플리마켓 등)
+                "public_festivals": public_data,
+                "naver_blogs": blog_data,
+                "venues": venue_data
             }
         }
         return jsonify(result)
 
     except Exception as e:
         # 에러 발생 시 처리
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+# [API 4] 크롤링 + DB 저장 (하루 한 번 실행용)
+# 주소: http://localhost:5003/api/crawl/save
+@api_bp.route('/crawl/save', methods=['POST'])
+def crawl_and_save():
+    """
+    크롤링 후 DB에 저장
+    ---
+    responses:
+      200:
+        description: 크롤링 결과를 DB에 저장합니다.
+    """
+    try:
+        # 크롤러 객체 생성
+        crawler = DataCrawler()
+        
+        # 1. 공공데이터(축제) 수집
+        print(">> [API] 공공데이터 수집...")
+        public_data = crawler.fetch_public_festivals()
+        
+        # 2. 네이버 블로그 수집
+        print(">> [API] 네이버 블로그 수집...")
+        blog_data = crawler.fetch_naver_blogs()
+        
+        # 3. Venue 크롤링
+        print(">> [API] Venue 크롤링...")
+        venue_crawler = VenueCrawler()
+        venue_data = venue_crawler.crawl_all()
+        venue_crawler.close()
+        
+        all_data = public_data + blog_data + venue_data
+        print(f">> [API] 총 {len(all_data)}개 수집 완료")
+        
+        # DB 저장
+        new_count = 0
+        for item in all_data:
+            # 중복 체크 (제목과 날짜가 같으면 중복)
+            exists = Event.query.filter_by(title=item['title'], date=item.get('date')).first()
+            if not exists:
+                new_event = Event(
+                    title=item['title'],
+                    category=item.get('category'),
+                    date=item.get('date'),
+                    start_date=item.get('start_date'),
+                    end_date=item.get('end_date'),
+                    location=item.get('location'),
+                    lat=item.get('lat', 0),
+                    lng=item.get('lng', 0),
+                    description=item.get('description', ''),
+                    image=item.get('image', ''),
+                    source=item.get('source', ''),
+                    link=item.get('link', '')
+                )
+                db.session.add(new_event)
+                new_count += 1
+        
+        db.session.commit()
+        print(f">> [API] {new_count}개 신규 저장 완료")
+        
+        return jsonify({
+            "status": "success",
+            "total_crawled": len(all_data),
+            "new_saved": new_count,
+            "message": f"크롤링 완료! {len(all_data)}개 수집, {new_count}개 신규 저장"
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({
             "status": "error",
             "message": str(e)
