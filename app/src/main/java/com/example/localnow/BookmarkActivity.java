@@ -11,15 +11,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BookmarkActivity extends AppCompatActivity {
+    private com.example.localnow.utils.BookmarkManager.BookmarkChangeListener bookmarkChangeListener;
+    private RecyclerView recyclerView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bookmark);
 
-        RecyclerView recyclerView = findViewById(R.id.rv_bookmarks);
+        recyclerView = findViewById(R.id.rv_bookmarks);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         fetchBookmarks(recyclerView);
+
+        // Register bookmark change listener
+        bookmarkChangeListener = (eventId, isBookmarked) -> {
+            // Refresh bookmarks when bookmark changes
+            runOnUiThread(() -> fetchBookmarks(recyclerView));
+        };
+        com.example.localnow.utils.BookmarkManager.getInstance(this).addListener(bookmarkChangeListener);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Unregister bookmark change listener
+        if (bookmarkChangeListener != null) {
+            com.example.localnow.utils.BookmarkManager.getInstance(this).removeListener(bookmarkChangeListener);
+        }
     }
 
     private void fetchBookmarks(RecyclerView recyclerView) {
@@ -28,10 +47,13 @@ public class BookmarkActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(retrofit2.Call<com.example.localnow.model.EventResponse> call, retrofit2.Response<com.example.localnow.model.EventResponse> response) {
                         if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
-                            EventAdapter adapter = new EventAdapter(response.body().getData());
+                            List<Event> events = response.body().getData();
+                            for (Event event : events) {
+                                event.setBookmarked(true);
+                            }
+                            EventAdapter adapter = new EventAdapter(events);
                             recyclerView.setAdapter(adapter);
                         } else {
-                            // Fallback to local bookmarks
                             loadLocalBookmarks(recyclerView);
                         }
                     }
@@ -54,6 +76,7 @@ public class BookmarkActivity extends AppCompatActivity {
 
         for (Event event : allEvents) {
             if (bookmarkManager.isBookmarked(event.getId())) {
+                event.setBookmarked(true);
                 bookmarkedEvents.add(event);
             }
         }

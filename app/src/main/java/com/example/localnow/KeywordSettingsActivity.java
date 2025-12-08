@@ -84,6 +84,10 @@ public class KeywordSettingsActivity extends AppCompatActivity {
         Chip chip = new Chip(this);
         chip.setText(keyword);
         chip.setCloseIconVisible(true);
+        chip.setChipBackgroundColorResource(R.color.white);
+        chip.setChipStrokeColorResource(android.R.color.darker_gray);
+        chip.setChipStrokeWidth(2f);
+        chip.setTextColor(getResources().getColor(android.R.color.black, null));
         chip.setOnCloseIconClickListener(v -> {
             chipGroup.removeView(chip);
             currentKeywords.remove(keyword);

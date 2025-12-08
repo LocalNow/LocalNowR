@@ -22,6 +22,9 @@ public class MainActivity extends AppCompatActivity {
     private com.kakao.vectormap.label.Label userLocationMarker; // User location marker
     private com.kakao.vectormap.label.LabelLayer sharedLabelLayer; // Shared layer for all markers
 
+    // Bookmark change listener
+    private com.example.localnow.utils.BookmarkManager.BookmarkChangeListener bookmarkChangeListener;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -134,6 +137,13 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             android.util.Log.e("KeyHash", "Failed to get key hash", e);
         }
+
+        // Register bookmark change listener
+        bookmarkChangeListener = (eventId, isBookmarked) -> {
+            // Refresh events when bookmark changes
+            runOnUiThread(() -> fetchEvents());
+        };
+        com.example.localnow.utils.BookmarkManager.getInstance(this).addListener(bookmarkChangeListener);
     }
 
     private void fetchEvents() {
@@ -206,25 +216,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Create simple marker bitmap (red dot)
-        int size = 32;
-        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(size, size,
-                android.graphics.Bitmap.Config.ARGB_8888);
-        android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
-        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-        paint.setColor(0xFFFF4757);
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
-        paint.setColor(0xFFFFFFFF);
-        paint.setStyle(android.graphics.Paint.Style.STROKE);
-        paint.setStrokeWidth(2);
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
-
-        android.util.Log.d("MainActivity", "📍 Created " + size + "px marker");
-
-        // Simple LabelStyle
-        com.kakao.vectormap.label.LabelStyle style = com.kakao.vectormap.label.LabelStyle.from(bitmap);
-        com.kakao.vectormap.label.LabelStyles styles = com.kakao.vectormap.label.LabelStyles.from(style);
-
         // Store events for click
         final java.util.Map<String, com.example.localnow.model.Event> eventMap = new java.util.HashMap<>();
         int count = 0;
@@ -236,8 +227,26 @@ public class MainActivity extends AppCompatActivity {
                 continue;
 
             try {
-                // Add small random jitter to separate overlapping markers
-                // 0.0001 degrees is approx 11 meters. 0.0003 is approx 33m.
+                // Get category color
+                int markerColor = com.example.localnow.utils.ColorUtils.getCategoryColor(event.getCategory());
+
+                // Create marker bitmap with category color
+                int size = 32;
+                android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(size, size,
+                        android.graphics.Bitmap.Config.ARGB_8888);
+                android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+                android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+                paint.setColor(markerColor);
+                canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
+                paint.setColor(0xFFFFFFFF);
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                paint.setStrokeWidth(2);
+                canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
+
+                com.kakao.vectormap.label.LabelStyle style = com.kakao.vectormap.label.LabelStyle.from(bitmap);
+                com.kakao.vectormap.label.LabelStyles styles = com.kakao.vectormap.label.LabelStyles.from(style);
+
+                // Add jitter
                 double jitterLat = (Math.random() - 0.5) * 0.0006;
                 double jitterLng = (Math.random() - 0.5) * 0.0006;
 
@@ -307,8 +316,9 @@ public class MainActivity extends AppCompatActivity {
         com.google.android.material.tabs.TabLayout tabLayout = findViewById(R.id.tabLayout);
 
         java.util.List<com.example.localnow.adapters.BottomSheetAdapter.PageData> dataList = new java.util.ArrayList<>();
+        com.example.localnow.utils.BookmarkManager bookmarkManager = com.example.localnow.utils.BookmarkManager.getInstance(this);
 
-        // Create pages from real event data
+        // Create pages from nearby event data (up to 5 events)
         for (int i = 0; i < Math.min(events.size(), 5); i++) {
             com.example.localnow.model.Event event = events.get(i);
 
@@ -342,18 +352,24 @@ public class MainActivity extends AppCompatActivity {
             // Add event info for map navigation
             pageData.setEventInfo(event.getId(), event.getLat(), event.getLng());
 
-            // Add bookmark click handler
-            pageData.setBookmarkClickListener((eventId, isBookmarked) -> {
-                android.util.Log.d("MainActivity", "Bookmark toggled for event " + eventId + ": " + isBookmarked);
+            // Set initial bookmark state from BookmarkManager
+            boolean isBookmarked = bookmarkManager.isBookmarked(event.getId());
+            pageData.setBookmarked(isBookmarked);
 
-                if (isBookmarked) {
-                    // Add bookmark
+            // Add bookmark click handler
+            pageData.setBookmarkClickListener((eventId, isBookmarked1) -> {
+                android.util.Log.d("MainActivity", "Bookmark toggled for event " + eventId + ": " + isBookmarked1);
+
+                if (isBookmarked1) {
+                    // Add bookmark via API
                     com.example.localnow.api.RetrofitClient.getApiService()
                             .addBookmark(new com.example.localnow.model.BookmarkRequest(eventId))
                             .enqueue(new retrofit2.Callback<Void>() {
                                 @Override
                                 public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
                                     if (response.isSuccessful()) {
+                                        // Update local BookmarkManager to trigger listeners
+                                        bookmarkManager.addBookmark(eventId);
                                         android.widget.Toast.makeText(MainActivity.this, "북마크 추가됨",
                                                 android.widget.Toast.LENGTH_SHORT).show();
                                     } else {
@@ -370,13 +386,15 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
                 } else {
-                    // Remove bookmark
+                    // Remove bookmark via API
                     com.example.localnow.api.RetrofitClient.getApiService()
                             .deleteBookmark(eventId)
                             .enqueue(new retrofit2.Callback<Void>() {
                                 @Override
                                 public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
                                     if (response.isSuccessful()) {
+                                        // Update local BookmarkManager to trigger listeners
+                                        bookmarkManager.removeBookmark(eventId);
                                         android.widget.Toast.makeText(MainActivity.this, "북마크 삭제됨",
                                                 android.widget.Toast.LENGTH_SHORT).show();
                                     } else {
@@ -412,12 +430,14 @@ public class MainActivity extends AppCompatActivity {
         }
 
         com.example.localnow.adapters.BottomSheetAdapter adapter = new com.example.localnow.adapters.BottomSheetAdapter(
-                dataList);
+                dataList, RADIUS_KM);
         viewPager.setAdapter(adapter);
 
         new com.google.android.material.tabs.TabLayoutMediator(tabLayout, viewPager,
                 (tab, position) -> {
-                    // Tab configuration
+                    // Get PageData for the current position and set tab text
+                    com.example.localnow.adapters.BottomSheetAdapter.PageData pageData = dataList.get(position);
+                    tab.setText(pageData.getPageTitle());
                 }).attach();
     }
 
@@ -599,11 +619,26 @@ public class MainActivity extends AppCompatActivity {
             userLocationMarker = null;
         }
 
-        // Add new marker for user location (using PNG marker like events)
+        // Create green marker for user location
         try {
+            int size = 36;
+            android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(size, size,
+                    android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+            android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(0xFF4CAF50); // 초록색
+            canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
+            paint.setColor(0xFFFFFFFF);
+            paint.setStyle(android.graphics.Paint.Style.STROKE);
+            paint.setStrokeWidth(3);
+            canvas.drawCircle(size / 2f, size / 2f, size / 2f - 2, paint);
+
+            com.kakao.vectormap.label.LabelStyle style = com.kakao.vectormap.label.LabelStyle.from(bitmap);
+            com.kakao.vectormap.label.LabelStyles styles = com.kakao.vectormap.label.LabelStyles.from(style);
+
             userLocationMarker = labelLayer.addLabel(
                 com.kakao.vectormap.label.LabelOptions.from("user_location", position)
-                    .setStyles(R.drawable.yellow_marker) // Use PNG from drawable-nodpi
+                    .setStyles(styles)
                     .setClickable(false)
             );
             android.util.Log.d("MainActivity", "✓ User location marker added at: " + position.getLatitude() + ", " + position.getLongitude());
@@ -636,6 +671,10 @@ public class MainActivity extends AppCompatActivity {
         // Stop location updates when activity is destroyed
         if (locationHelper != null) {
             locationHelper.stopLocationUpdates();
+        }
+        // Unregister bookmark change listener
+        if (bookmarkChangeListener != null) {
+            com.example.localnow.utils.BookmarkManager.getInstance(this).removeListener(bookmarkChangeListener);
         }
     }
 

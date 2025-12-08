@@ -10,6 +10,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private int eventId;
     private boolean isBookmarked;
     private ImageView bookmarkIcon;
+    private com.example.localnow.utils.BookmarkManager.BookmarkChangeListener bookmarkChangeListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +65,7 @@ public class EventDetailActivity extends AppCompatActivity {
         tvTitle.setText(title != null ? title : "이벤트");
         tvDate.setText(formatDate(date));
         tvLocation.setText(location != null ? location : "장소 미정");
-        tvCategory.setText(category != null ? category : "기타");
+        tvCategory.setText(category != null ? category : "이벤트 카테고리");
         tvDescription.setText(description != null && !description.isEmpty() ? description : "상세 정보가 없습니다.");
 
         // Load Image with Glide
@@ -122,6 +123,26 @@ public class EventDetailActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // Register bookmark change listener
+        bookmarkChangeListener = (id, bookmarked) -> {
+            if (id == eventId) {
+                runOnUiThread(() -> {
+                    isBookmarked = bookmarked;
+                    updateBookmarkIcon();
+                });
+            }
+        };
+        com.example.localnow.utils.BookmarkManager.getInstance(this).addListener(bookmarkChangeListener);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Unregister bookmark change listener
+        if (bookmarkChangeListener != null) {
+            com.example.localnow.utils.BookmarkManager.getInstance(this).removeListener(bookmarkChangeListener);
+        }
     }
 
     private String formatDate(String date) {

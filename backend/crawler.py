@@ -8,7 +8,7 @@ from venue_crawler import VenueCrawler
 
 class DataCrawler:
     def __init__(self):
-        self.PUBLIC_DATA_KEY = unquote(Config.PUBLIC_DATA_KEY) # 이중 인코딩 방지
+        self.PUBLIC_DATA_KEY = Config.PUBLIC_DATA_KEY # 인코딩 상태로 사용
         self.NAVER_ID = Config.NAVER_CLIENT_ID
         self.NAVER_SECRET = Config.NAVER_CLIENT_SECRET
         self.KAKAO_KEY = Config.KAKAO_REST_API_KEY
@@ -36,7 +36,7 @@ class DataCrawler:
 
     # [2] 공공데이터: 축제 정보 조회
     def fetch_public_festivals(self):
-        url = "http://apis.data.go.kr/B551011/KorService1/searchFestival1"
+        url = "https://apis.data.go.kr/B551011/KorService1/searchFestival1"
         
         # 어제 날짜 계산 (YYYYMMDD)
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
@@ -58,6 +58,8 @@ class DataCrawler:
         try:
             print(f" 공공데이터 조회 중... (시작일: {yesterday})")
             resp = requests.get(url, params=params)
+            print(f" 응답 코드: {resp.status_code}")
+            print(f" 응답 내용: {resp.text[:200]}")
             items = resp.json().get('response', {}).get('body', {}).get('items', {}).get('item', [])
             
             # items가 None이면 빈 리스트로 처리
