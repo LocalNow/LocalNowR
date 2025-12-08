@@ -73,6 +73,14 @@
             android:layout_marginTop="16dp"
             android:src="@drawable/ic_calendar"
             app:tint="#555555" />
+
+        <ImageView
+            android:id="@+id/btnChat"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginTop="16dp"
+            android:src="@drawable/ic_chat"
+            app:tint="#555555" />
     </LinearLayout>
 
     <!-- Dynamic markers are added to Kakao Map via code -->

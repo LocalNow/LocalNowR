@@ -38,6 +38,7 @@
         <activity android:name=".SignupActivity" />
         <activity android:name=".CalendarActivity" android:exported="false" />
         <activity android:name=".KeywordSettingsActivity" android:exported="false" />
+        <activity android:name=".ChatActivity" android:exported="false" />
     </application>
 
 </manifest>

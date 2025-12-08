@@ -28,8 +28,14 @@ try:
     from user_routes import user_bp
     from flask_login import LoginManager
 
+    from chat_socket import init_socketio
+    
     # DB 초기화
     db.init_app(app)
+    
+    # SocketIO 초기화
+    socketio = init_socketio(app)
+
     with app.app_context():
         db.create_all()
     
@@ -60,6 +66,6 @@ if __name__ == '__main__':
     from scheduler import start_scheduler
     start_scheduler()
     
-    print(">> [LocalNow] Server is Starting on Port 5002...")
+    print(">> [LocalNow] Server is Starting on Port 5003 with SocketIO...")
     # 외부부
-    app.run(host='0.0.0.0', port=5003, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5003, debug=False, allow_unsafe_werkzeug=True)

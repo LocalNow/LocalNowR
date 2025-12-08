@@ -89,6 +89,12 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        ImageView btnChat = findViewById(R.id.btnChat);
+        btnChat.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, ChatActivity.class);
+            startActivity(intent);
+        });
+
         // Fetch Events (will populate bottom sheet automatically)
         fetchEvents();
 
