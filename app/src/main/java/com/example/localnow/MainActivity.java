@@ -129,6 +129,15 @@ public class MainActivity extends AppCompatActivity {
         // Initialize location tracking
         initializeLocationTracking();
 
+        // Request Notification Permission (Android 13+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(this,
+                    android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(this,
+                        new String[] { android.Manifest.permission.POST_NOTIFICATIONS }, 101);
+            }
+        }
+
         // Fetch Events (will populate bottom sheet automatically)
         fetchEvents();
 
@@ -584,13 +593,18 @@ public class MainActivity extends AppCompatActivity {
         locationHelper.startLocationUpdates(new LocationHelper.LocationCallback() {
             @Override
             public void onLocationReceived(double lat, double lng) {
-                userLatitude = lat;
-                userLongitude = lng;
-                android.util.Log.d("MainActivity", "User location: " + lat + ", " + lng);
+                // FIX: Hardcode location to Songdo 1-dong Administrative Welfare Center
+                // userLatitude = lat;
+                // userLongitude = lng;
+                userLatitude = 37.394788;
+                userLongitude = 126.650733;
+
+                android.util.Log.d("MainActivity", "User location (FIXED): " + userLatitude + ", " + userLongitude);
 
                 // Update map camera to user's location on first location
                 if (kakaoMap != null && userLatitude != 0.0) {
-                    com.kakao.vectormap.LatLng userPosition = com.kakao.vectormap.LatLng.from(lat, lng);
+                    com.kakao.vectormap.LatLng userPosition = com.kakao.vectormap.LatLng.from(userLatitude,
+                            userLongitude);
                     com.kakao.vectormap.camera.CameraUpdate cameraUpdate = com.kakao.vectormap.camera.CameraUpdateFactory
                             .newCenterPosition(userPosition, 15);
                     kakaoMap.moveCamera(cameraUpdate);

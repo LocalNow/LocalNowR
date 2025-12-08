@@ -5,12 +5,20 @@ import sys
 
 def send_test_push(mode="event"):
     with app.app_context():
-        # 1. Find users with keyword "전시회" (or just all users for demo)
-        keyword = "전시회"
-        users = User.query.filter(User.fcm_token.isnot(None)).all()
+        # 1. Find users with keyword "전시회"
+        target_keyword = "전시회"
+        all_users = User.query.filter(User.fcm_token.isnot(None)).all()
+        
+        users = []
+        for user in all_users:
+            if user.keywords:
+                keywords = [k.strip() for k in user.keywords.split(',')]
+                if target_keyword in keywords:
+                    users.append(user)
             
         if not users:
-            print("No users found with FCM tokens.")
+            print(f"No users found with keyword '{target_keyword}' and valid FCM token.")
+            print("Please set the keyword in the app first.")
             return
 
         tokens = [user.fcm_token for user in users]

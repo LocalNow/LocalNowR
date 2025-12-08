@@ -51,6 +51,12 @@ public class ChatActivity extends AppCompatActivity {
         eventId = getIntent().getStringExtra("eventId");
         eventTitle = getIntent().getStringExtra("eventTitle");
 
+        // FIX: Default to global chat if no event is selected
+        if (eventId == null) {
+            eventId = "global";
+            eventTitle = "전체 채팅";
+        }
+
         initViews();
         initSocket();
     }
@@ -140,6 +146,13 @@ public class ChatActivity extends AppCompatActivity {
             String message = data.getString("message");
             int distance = data.optInt("distance", 0);
 
+            // Skip if it's my own message (already added locally)
+            android.content.SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+            String currentUserId = prefs.getString("user_id", "익명");
+            if (nickname.equals(currentUserId)) {
+                return; // Don't add duplicate
+            }
+
             messages.add(new ChatMessage(nickname, message, distance));
             adapter.notifyItemInserted(messages.size() - 1);
             rvChat.scrollToPosition(messages.size() - 1);
@@ -196,6 +209,7 @@ public class ChatActivity extends AppCompatActivity {
             rvChat.scrollToPosition(messages.size() - 1);
 
             etMessage.setText("");
+
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -267,14 +281,36 @@ public class ChatActivity extends AppCompatActivity {
                     android.content.Context.MODE_PRIVATE);
             String currentUserId = prefs.getString("user_id", "익명");
 
+            // Set alignment and styling base on sender
+            android.widget.LinearLayout.LayoutParams nicknameParams = (android.widget.LinearLayout.LayoutParams) holder.tvNickname
+                    .getLayoutParams();
+            android.widget.LinearLayout.LayoutParams messageParams = (android.widget.LinearLayout.LayoutParams) holder.tvMessage
+                    .getLayoutParams();
+            android.widget.LinearLayout.LayoutParams distanceParams = (android.widget.LinearLayout.LayoutParams) holder.tvDistance
+                    .getLayoutParams();
+
             if (msg.nickname.equals(currentUserId)) {
+                // My message: align right
+                nicknameParams.gravity = android.view.Gravity.END;
+                messageParams.gravity = android.view.Gravity.END;
+                distanceParams.gravity = android.view.Gravity.END;
                 holder.tvDistance.setVisibility(View.GONE);
                 holder.tvNickname.setTextColor(android.graphics.Color.BLUE);
+                holder.tvMessage.setBackgroundColor(0xFFDCF8C6); // Light green background
             } else {
+                // Other's message: align left
+                nicknameParams.gravity = android.view.Gravity.START;
+                messageParams.gravity = android.view.Gravity.START;
+                distanceParams.gravity = android.view.Gravity.START;
                 holder.tvDistance.setVisibility(View.VISIBLE);
                 holder.tvDistance.setText(msg.distance + "m 거리");
                 holder.tvNickname.setTextColor(android.graphics.Color.GRAY);
+                holder.tvMessage.setBackgroundColor(0xFFFFFFFF); // White background
             }
+
+            holder.tvNickname.setLayoutParams(nicknameParams);
+            holder.tvMessage.setLayoutParams(messageParams);
+            holder.tvDistance.setLayoutParams(distanceParams);
         }
 
         @Override
