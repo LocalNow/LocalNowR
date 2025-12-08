@@ -42,4 +42,7 @@ public interface ApiService {
 
     @POST("/api/user/keywords")
     Call<Void> updateKeywords(@Body com.example.localnow.model.KeywordRequest request);
+
+    @POST("/api/user/fcm-token")
+    Call<Void> updateToken(@Body com.example.localnow.model.TokenRequest request);
 }

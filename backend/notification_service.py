@@ -58,13 +58,29 @@ def send_multicast_notification(tokens, title, body, data=None):
             notification=messaging.Notification(
                 title=title,
                 body=body,
-            ),
+            ) if title and body else None,
             data=data if data else {},
             tokens=tokens,
         )
-        response = messaging.send_multicast(message)
+        # send_multicast was deprecated/removed in newer versions?
+        # Use send_each_for_multicast if available, or check docs.
+        # Actually, send_multicast should still work in 6.x, but we upgraded to 7.x
+        # In 7.x, send_multicast is still there but maybe we need to import it differently?
+        # Let's try send_each_for_multicast which is the new standard.
+        
+        response = messaging.send_each_for_multicast(message)
         print(f'{response.success_count} messages were sent successfully')
+        if response.failure_count > 0:
+            for idx, resp in enumerate(response.responses):
+                if not resp.success:
+                    print(f'Failure {idx}: {resp.exception}')
         return True
     except Exception as e:
         print('Error sending multicast message:', e)
-        return False
+        # Fallback for older versions or if send_each_for_multicast fails
+        try:
+            response = messaging.send_multicast(message)
+            print(f'{response.success_count} messages were sent successfully')
+            return True
+        except:
+            return False

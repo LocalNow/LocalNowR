@@ -111,6 +111,42 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             android.util.Log.e("KeyHash", "Failed to get key hash", e);
         }
+
+        // Token Button Listener
+        findViewById(R.id.btn_get_token).setOnClickListener(v -> {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+                if (!task.isSuccessful()) {
+                    android.util.Log.w("LocalNow", "Fetching FCM registration token failed", task.getException());
+                    android.widget.Toast.makeText(MainActivity.this, "Token Fail: " + task.getException().getMessage(),
+                            android.widget.Toast.LENGTH_LONG).show();
+                    return;
+                }
+                String token = task.getResult();
+                android.util.Log.d("LocalNow", "FCM Token: " + token);
+                android.widget.Toast.makeText(MainActivity.this, "Token: " + token, android.widget.Toast.LENGTH_SHORT)
+                        .show();
+                // Send token to server
+                sendTokenToServer(token);
+            });
+        });
+
+        // Auto Fetch Token
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+            if (!task.isSuccessful()) {
+                android.util.Log.w("LocalNow", "Fetching FCM registration token failed", task.getException());
+                return;
+            }
+            String token = task.getResult();
+            android.util.Log.d("LocalNow", "FCM Token: " + token);
+            sendTokenToServer(token);
+        });
+
+        // Check for notification extras (Deep Link)
+        if (getIntent().hasExtra("event_id")) {
+            Intent detailIntent = new Intent(this, EventDetailActivity.class);
+            detailIntent.putExtras(getIntent());
+            startActivity(detailIntent);
+        }
     }
 
     private void fetchEvents() {
@@ -378,6 +414,26 @@ public class MainActivity extends AppCompatActivity {
                 (tab, position) -> {
                     // Tab configuration
                 }).attach();
+    }
+
+    private void sendTokenToServer(String token) {
+        com.example.localnow.api.RetrofitClient.getApiService()
+                .updateToken(new com.example.localnow.model.TokenRequest(token))
+                .enqueue(new retrofit2.Callback<Void>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
+                        if (response.isSuccessful()) {
+                            android.util.Log.d("MainActivity", "✅ FCM Token updated on server");
+                        } else {
+                            android.util.Log.e("MainActivity", "❌ Failed to update FCM token: " + response.code());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(retrofit2.Call<Void> call, Throwable t) {
+                        android.util.Log.e("MainActivity", "❌ Network error updating FCM token", t);
+                    }
+                });
     }
 
     private void scheduleEventNotifications(java.util.List<com.example.localnow.model.Event> events) {

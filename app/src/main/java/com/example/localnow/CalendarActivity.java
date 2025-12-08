@@ -229,5 +229,8 @@ public class CalendarActivity extends AppCompatActivity {
         }
 
         adapter.updateList(eventsOnDate);
+        // Debug: Show count
+        android.widget.Toast.makeText(this, "Events found: " + eventsOnDate.size(),
+                android.widget.Toast.LENGTH_SHORT).show();
     }
 }

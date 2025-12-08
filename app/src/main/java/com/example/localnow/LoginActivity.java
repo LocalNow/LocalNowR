@@ -49,6 +49,10 @@ public class LoginActivity extends AppCompatActivity {
                                 prefs.edit().putString("user_id", id).apply();
 
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                                // Forward event extras if present
+                                if (getIntent().hasExtra("event_id")) {
+                                    intent.putExtras(getIntent());
+                                }
                                 startActivity(intent);
                                 finish();
                             } else {
@@ -153,6 +157,10 @@ public class LoginActivity extends AppCompatActivity {
                         if (response.isSuccessful()) {
                             // Login Success
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                            // Forward event extras if present
+                            if (getIntent().hasExtra("event_id")) {
+                                intent.putExtras(getIntent());
+                            }
                             startActivity(intent);
                             finish();
                         } else {

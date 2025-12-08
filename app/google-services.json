@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "503580259162",
+    "project_id": "localnow-4d85a",
+    "storage_bucket": "localnow-4d85a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:503580259162:android:f5efa50cd5367052bcb963",
+        "android_client_info": {
+          "package_name": "com.example.localnow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1MINKl8ToVhZpH4J3SiBnOxJWHm2zLsQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
