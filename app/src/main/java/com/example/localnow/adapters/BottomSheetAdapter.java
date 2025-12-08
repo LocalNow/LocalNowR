@@ -16,9 +16,11 @@ import java.util.List;
 public class BottomSheetAdapter extends RecyclerView.Adapter<BottomSheetAdapter.ViewHolder> {
 
     private final List<PageData> pageDataList;
+    private final double radiusKm;
 
-    public BottomSheetAdapter(List<PageData> pageDataList) {
+    public BottomSheetAdapter(List<PageData> pageDataList, double radiusKm) {
         this.pageDataList = pageDataList;
+        this.radiusKm = radiusKm;
     }
 
     @NonNull
@@ -32,7 +34,7 @@ public class BottomSheetAdapter extends RecyclerView.Adapter<BottomSheetAdapter.
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         PageData data = pageDataList.get(position);
-        holder.pageTitle.setText(data.pageTitle);
+        holder.pageTitle.setText(data.getPageTitle());
 
         if (data.pageSubtitle != null && !data.pageSubtitle.isEmpty()) {
             holder.pageSubtitle.setText(data.pageSubtitle);
@@ -43,7 +45,16 @@ public class BottomSheetAdapter extends RecyclerView.Adapter<BottomSheetAdapter.
 
         holder.itemTitle.setText(data.itemTitle);
         holder.itemDescription.setText(data.itemDescription);
-        holder.itemIcon.setImageResource(data.iconResId);
+
+        // Set category color circle
+        int color = com.example.localnow.utils.ColorUtils.getCategoryColor(data.getPageTitle());
+        android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+        circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        circle.setColor(color);
+        holder.itemIcon.setImageDrawable(circle);
+
+        // Set distance badge text
+        holder.distanceBadge.setText(String.format(java.util.Locale.getDefault(), "%.0fkm 이내", radiusKm));
 
         // Set bookmark icon based on state
         updateBookmarkIcon(holder.itemBookmark, data.isBookmarked);
@@ -80,7 +91,7 @@ public class BottomSheetAdapter extends RecyclerView.Adapter<BottomSheetAdapter.
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView pageTitle, pageSubtitle, itemTitle, itemDescription;
+        TextView pageTitle, pageSubtitle, itemTitle, itemDescription, distanceBadge;
         ImageView itemIcon, itemBookmark;
         View itemCard;
 
@@ -93,6 +104,7 @@ public class BottomSheetAdapter extends RecyclerView.Adapter<BottomSheetAdapter.
             itemIcon = itemView.findViewById(R.id.itemIcon);
             itemBookmark = itemView.findViewById(R.id.itemBookmark);
             itemCard = itemView.findViewById(R.id.itemCard);
+            distanceBadge = itemView.findViewById(R.id.distanceBadge);
         }
     }
 
@@ -139,6 +151,10 @@ public class BottomSheetAdapter extends RecyclerView.Adapter<BottomSheetAdapter.
         public PageData setBookmarkClickListener(BookmarkClickListener listener) {
             this.bookmarkClickListener = listener;
             return this;
+        }
+
+        public String getPageTitle() {
+            return pageTitle;
         }
     }
 }

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py:*)",
+      "Bash(timeout 120 py:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(python app.py:*)",
+      "Bash(python crawler.py:*)",
+      "Bash(python3:*)",
+      "Bash(where:*)",
+      "Bash(py app.py)",
+      "Bash(py crawler.py)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

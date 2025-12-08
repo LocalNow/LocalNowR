@@ -15,6 +15,7 @@ public class SearchActivity extends AppCompatActivity {
     private List<com.example.localnow.model.Event> allEvents;
     private String currentQuery = "";
     private String currentCategory = "전체";
+    private com.example.localnow.utils.BookmarkManager.BookmarkChangeListener bookmarkChangeListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +35,20 @@ public class SearchActivity extends AppCompatActivity {
 
         // Fetch events from server
         fetchEvents(searchBox);
+
+        // Register bookmark change listener
+        bookmarkChangeListener = (eventId, isBookmarked) -> {
+            runOnUiThread(() -> {
+                // Update bookmark state in current list
+                for (com.example.localnow.model.Event event : allEvents) {
+                    if (event.getId() == eventId) {
+                        event.setBookmarked(isBookmarked);
+                    }
+                }
+                filterEvents();
+            });
+        };
+        com.example.localnow.utils.BookmarkManager.getInstance(this).addListener(bookmarkChangeListener);
 
         // Setup Search Listener
         searchBox.addTextChangedListener(new android.text.TextWatcher() {
@@ -73,6 +88,15 @@ public class SearchActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Unregister bookmark change listener
+        if (bookmarkChangeListener != null) {
+            com.example.localnow.utils.BookmarkManager.getInstance(this).removeListener(bookmarkChangeListener);
+        }
+    }
+
     private void fetchEvents(android.widget.EditText searchBox) {
         com.example.localnow.api.RetrofitClient.getApiService().getEvents()
                 .enqueue(new retrofit2.Callback<com.example.localnow.model.EventResponse>() {
@@ -82,7 +106,7 @@ public class SearchActivity extends AppCompatActivity {
                         if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
                             allEvents = response.body().getData();
                         } else {
-                            allEvents = MockData.getEvents();
+                            allEvents = new ArrayList<>();
                         }
                         filterEvents();
                     }
@@ -90,7 +114,7 @@ public class SearchActivity extends AppCompatActivity {
                     @Override
                     public void onFailure(retrofit2.Call<com.example.localnow.model.EventResponse> call,
                             Throwable t) {
-                        allEvents = MockData.getEvents();
+                        allEvents = new ArrayList<>();
                         filterEvents();
                     }
                 });

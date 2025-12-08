@@ -85,6 +85,21 @@
 
     <!-- Dynamic markers are added to Kakao Map via code -->
 
+    <!-- My Location Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnMyLocation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="280dp"
+        android:src="@android:drawable/ic_menu_mylocation"
+        android:contentDescription="My Location"
+        app:backgroundTint="#FFFFFF"
+        app:tint="#555555"
+        app:elevation="20dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Bottom Sheet Card -->
     <Button
         android:id="@+id/btn_get_token"

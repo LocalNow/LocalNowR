@@ -89,7 +89,7 @@ public class LoginActivity extends AppCompatActivity {
         new Thread(() -> {
             com.google.android.gms.auth.api.signin.GoogleSignInOptions gso = new com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
                     com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestIdToken("564482737758-mco0jdir6gsh3n7eqgo9heb56ds4a6k0.apps.googleusercontent.com")
+                    .requestIdToken(getString(R.string.server_client_id))
                     .requestEmail()
                     .build();
 
