@@ -14,3 +14,4 @@
 .cxx
 local.properties
 /.idea/cody_history.xml
+.claude/settings.local.json

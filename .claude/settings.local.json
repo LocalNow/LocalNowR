@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py:*)",
+      "Bash(timeout 120 py:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
