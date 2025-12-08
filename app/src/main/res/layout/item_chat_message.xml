@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/tvNickname"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="익명"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/tvMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="메시지 내용"
+        android:textSize="16sp"
+        android:textColor="#333333"
+        android:background="@drawable/info_card_bg"
+        android:padding="12dp"
+        android:maxWidth="280dp" />
+
+    <TextView
+        android:id="@+id/tvDistance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="100m 이내"
+        android:textSize="10sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginTop="2dp" />
+
+</LinearLayout>

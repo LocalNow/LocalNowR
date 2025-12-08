@@ -73,11 +73,28 @@
             android:layout_marginTop="16dp"
             android:src="@drawable/ic_calendar"
             app:tint="#555555" />
+
+        <ImageView
+            android:id="@+id/btnChat"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginTop="16dp"
+            android:src="@drawable/ic_chat"
+            app:tint="#555555" />
     </LinearLayout>
 
     <!-- Dynamic markers are added to Kakao Map via code -->
 
     <!-- Bottom Sheet Card -->
+    <Button
+        android:id="@+id/btn_get_token"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Get Token"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="50dp"/>
+
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

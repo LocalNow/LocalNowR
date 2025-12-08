@@ -60,8 +60,16 @@ class DataCrawler:
             resp = requests.get(url, params=params)
             items = resp.json().get('response', {}).get('body', {}).get('items', {}).get('item', [])
             
+            # items가 None이면 빈 리스트로 처리
+            if items is None:
+                items = []
+            
             for item in items:
                 title = item.get('title')
+                
+                # title이 None이면 스킵
+                if not title:
+                    continue
                 
                 # 중복 제거
                 if title in self.seen_titles:

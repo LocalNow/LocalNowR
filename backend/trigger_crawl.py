@@ -1,5 +1,8 @@
 from scheduler import run_crawling_job
 from app import app
+from dotenv import load_dotenv
+
+load_dotenv()
 
 if __name__ == "__main__":
     print(">> Manually triggering crawling job...")
@@ -7,7 +10,7 @@ if __name__ == "__main__":
     
     # Trigger Keyword Notifications
     from app import app
-    from models import User, NotificationHistory, db
+    from models import User, NotificationHistory, db, Event
     from notification_service import send_multicast_notification
     from datetime import datetime, timedelta
 

@@ -34,9 +34,17 @@ def get_events():
         description: DB에 저장된 이벤트 목록을 반환합니다.
     """
     from datetime import datetime, timedelta
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
     
-    events = Event.query.filter(Event.date >= yesterday).order_by(Event.date).all()
+    # Filter by end_date (datetime) or date (string) for backwards compatibility
+    events = Event.query.filter(
+        db.or_(
+            Event.end_date >= today,  # Use end_date if available
+            db.and_(Event.end_date.is_(None), Event.date >= yesterday)  # Fallback to date field
+        )
+    ).order_by(Event.date).all()
+    
     result = []
     for event in events:
         result.append({
@@ -44,6 +52,8 @@ def get_events():
             "title": event.title,
             "category": event.category,
             "date": event.date,
+            "start_date": event.start_date.strftime("%Y-%m-%d") if event.start_date else None,
+            "end_date": event.end_date.strftime("%Y-%m-%d") if event.end_date else None,
             "location": event.location,
             "lat": event.lat,
             "lng": event.lng,
@@ -60,7 +70,6 @@ def get_events():
 
 # [API 3] 크롤링 테스트 (실시간 - 디버깅용)
 # 주소: http://localhost:5000/api/crawl/test
-# 설명: 공공데이터와 네이버 블로그 데이터를 실시간으로 긁어와서 보여줍니다.
 @api_bp.route('/crawl/test', methods=['GET'])
 def test_crawling():
     try:
@@ -71,11 +80,7 @@ def test_crawling():
         print(">> [Request] 공공데이터 수집 요청 시작...")
         public_data = crawler.fetch_public_festivals()
         
-        # 2. 네이버 블로그(플리마켓 등) 수집
-        print(">> [Request] 네이버 블로그 수집 요청 시작...")
-        blog_data = crawler.fetch_naver_blogs() 
-        
-        # 3. Venue 크롤링 (공식 행사장)
+        # 2. Venue 크롤링 (공식 행사장)
         print(">> [Request] Venue 크롤링 시작...")
         venue_crawler = VenueCrawler()
         venue_data = venue_crawler.crawl_all()
@@ -84,10 +89,9 @@ def test_crawling():
         # 결과 합치기
         result = {
             "status": "success",
-            "total_count": len(public_data) + len(blog_data) + len(venue_data),
+            "total_count": len(public_data) + len(venue_data),
             "data": {
                 "public_festivals": public_data,
-                "naver_blogs": blog_data,
                 "venues": venue_data
             }
         }
@@ -119,17 +123,13 @@ def crawl_and_save():
         print(">> [API] 공공데이터 수집...")
         public_data = crawler.fetch_public_festivals()
         
-        # 2. 네이버 블로그 수집
-        print(">> [API] 네이버 블로그 수집...")
-        blog_data = crawler.fetch_naver_blogs()
-        
-        # 3. Venue 크롤링
+        # 2. Venue 크롤링
         print(">> [API] Venue 크롤링...")
         venue_crawler = VenueCrawler()
         venue_data = venue_crawler.crawl_all()
         venue_crawler.close()
         
-        all_data = public_data + blog_data + venue_data
+        all_data = public_data + venue_data
         print(f">> [API] 총 {len(all_data)}개 수집 완료")
         
         # DB 저장
