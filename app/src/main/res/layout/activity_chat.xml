@@ -31,6 +31,7 @@
                 app:tint="#333333" />
 
             <TextView
+                android:id="@+id/tvChatTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="실시간 현장 톡 (500m)"

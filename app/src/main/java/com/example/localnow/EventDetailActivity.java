@@ -122,6 +122,15 @@ public class EventDetailActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // Chat FAB
+        final String finalTitleForChat = title;
+        findViewById(R.id.fab_chat).setOnClickListener(v -> {
+            Intent intent = new Intent(this, ChatActivity.class);
+            intent.putExtra("eventId", String.valueOf(eventId)); // Convert int to String as ChatActivity expects String
+            intent.putExtra("eventTitle", finalTitleForChat);
+            startActivity(intent);
+        });
     }
 
     private String formatDate(String date) {

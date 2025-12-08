@@ -43,6 +43,11 @@ public class LoginActivity extends AppCompatActivity {
                                 android.widget.Toast
                                         .makeText(LoginActivity.this, "로그인 성공", android.widget.Toast.LENGTH_SHORT)
                                         .show();
+                                // Save User ID
+                                android.content.SharedPreferences prefs = getSharedPreferences("user_prefs",
+                                        MODE_PRIVATE);
+                                prefs.edit().putString("user_id", id).apply();
+
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 startActivity(intent);
                                 finish();
@@ -119,6 +124,12 @@ public class LoginActivity extends AppCompatActivity {
 
             // Signed in successfully, show authenticated UI.
             String idToken = account.getIdToken();
+            String email = account.getEmail();
+
+            // Save User Email as ID
+            android.content.SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+            prefs.edit().putString("user_id", email).apply();
+
             sendTokenToBackend(idToken);
 
         } catch (com.google.android.gms.common.api.ApiException e) {

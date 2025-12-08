@@ -32,6 +32,9 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView btnSend;
     private TextView tvConnectionStatus;
     private ImageView btnBack;
+    private TextView tvChatTitle;
+    private String eventId;
+    private String eventTitle;
 
     // Dummy location for testing (Incheon Arts Center)
     // TODO: [Merge Conflict Resolution] Replace with real GPS location from
@@ -44,6 +47,10 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
+        // Get Event Info from Intent
+        eventId = getIntent().getStringExtra("eventId");
+        eventTitle = getIntent().getStringExtra("eventTitle");
+
         initViews();
         initSocket();
     }
@@ -54,6 +61,11 @@ public class ChatActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btnSend);
         tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
         btnBack = findViewById(R.id.btnBack);
+        tvChatTitle = findViewById(R.id.tvChatTitle);
+
+        if (eventTitle != null) {
+            tvChatTitle.setText(eventTitle);
+        }
 
         messages = new ArrayList<>();
         adapter = new ChatAdapter(messages);
@@ -77,6 +89,7 @@ public class ChatActivity extends AppCompatActivity {
         mSocket.on(Socket.EVENT_DISCONNECT, onDisconnect);
         mSocket.on(Socket.EVENT_CONNECT_ERROR, onConnectError);
         mSocket.on("receive_message", onNewMessage);
+        mSocket.on("system_message", onSystemMessage); // Handle system messages (join/leave)
 
         mSocket.connect();
     }
@@ -87,7 +100,27 @@ public class ChatActivity extends AppCompatActivity {
 
         // Send location immediately after connect
         sendLocation();
+
+        // Join Room if eventId exists
+        if (eventId != null) {
+            joinRoom();
+        }
     });
+
+    private void joinRoom() {
+        JSONObject data = new JSONObject();
+        try {
+            // Get user ID
+            android.content.SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+            String userId = prefs.getString("user_id", "익명");
+
+            data.put("room", eventId);
+            data.put("nickname", userId);
+            mSocket.emit("join", data);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
 
     private Emitter.Listener onDisconnect = args -> runOnUiThread(() -> {
         tvConnectionStatus.setText("연결 끊김 🔴");
@@ -115,6 +148,19 @@ public class ChatActivity extends AppCompatActivity {
         }
     });
 
+    private Emitter.Listener onSystemMessage = args -> runOnUiThread(() -> {
+        JSONObject data = (JSONObject) args[0];
+        try {
+            String message = data.getString("message");
+            // Add system message to chat (optional: different view type)
+            messages.add(new ChatMessage("System", message, 0));
+            adapter.notifyItemInserted(messages.size() - 1);
+            rvChat.scrollToPosition(messages.size() - 1);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    });
+
     private void sendLocation() {
         JSONObject data = new JSONObject();
         try {
@@ -133,12 +179,19 @@ public class ChatActivity extends AppCompatActivity {
 
         JSONObject data = new JSONObject();
         try {
-            data.put("nickname", "나"); // In real app, use user's nickname
+            // Get user ID from SharedPreferences
+            android.content.SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+            String userId = prefs.getString("user_id", "익명");
+
+            data.put("nickname", userId);
             data.put("message", message);
+            if (eventId != null) {
+                data.put("room", eventId); // Include room ID for room-specific messages
+            }
             mSocket.emit("send_message", data);
 
             // Add my message to list locally
-            messages.add(new ChatMessage("나", message, 0));
+            messages.add(new ChatMessage(userId, message, 0));
             adapter.notifyItemInserted(messages.size() - 1);
             rvChat.scrollToPosition(messages.size() - 1);
 
@@ -152,11 +205,26 @@ public class ChatActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (mSocket != null) {
+            // Leave room before disconnect
+            if (eventId != null) {
+                JSONObject data = new JSONObject();
+                try {
+                    android.content.SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+                    String userId = prefs.getString("user_id", "익명");
+                    data.put("room", eventId);
+                    data.put("nickname", userId);
+                    mSocket.emit("leave", data);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
             mSocket.disconnect();
             mSocket.off(Socket.EVENT_CONNECT, onConnect);
             mSocket.off(Socket.EVENT_DISCONNECT, onDisconnect);
             mSocket.off(Socket.EVENT_CONNECT_ERROR, onConnectError);
             mSocket.off("receive_message", onNewMessage);
+            mSocket.off("system_message", onSystemMessage);
         }
     }
 
@@ -194,7 +262,12 @@ public class ChatActivity extends AppCompatActivity {
             holder.tvNickname.setText(msg.nickname);
             holder.tvMessage.setText(msg.message);
 
-            if (msg.nickname.equals("나")) {
+            // Get user ID from SharedPreferences
+            android.content.SharedPreferences prefs = holder.itemView.getContext().getSharedPreferences("user_prefs",
+                    android.content.Context.MODE_PRIVATE);
+            String currentUserId = prefs.getString("user_id", "익명");
+
+            if (msg.nickname.equals(currentUserId)) {
                 holder.tvDistance.setVisibility(View.GONE);
                 holder.tvNickname.setTextColor(android.graphics.Color.BLUE);
             } else {
